@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:netkeep/presentation/home/home.screen.dart';
-import 'package:netkeep/presentation/profile/profile.screen.dart';
 import 'package:netkeep/presentation/network/network.screen.dart';
 import 'package:netkeep/presentation/settings/settings.screen.dart';
-import 'package:netkeep/widgets/bottom.nav.dart';
 
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
@@ -13,34 +11,30 @@ class ShellScreen extends StatefulWidget {
 }
 
 class _ShellScreenState extends State<ShellScreen> {
-  List screens = [
-    HomeScreen(),
-    NetworkScreen(),
-    ProfileScreen(),
-    SettingsScreen(),
-  ];
+  static const _screens = [HomeScreen(), NetworkScreen(), SettingsScreen()];
 
-  int activeIndex = 0;
+  int _index = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-       
-      body: screens[activeIndex],
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: activeIndex,
-        onChanged: (index) {
-          setState(() {
-            activeIndex = index;
-          });
-        },
-        icons: const [
-          Icons.dashboard_customize_outlined,
-          Icons.speed,
-          Icons.settings_backup_restore_outlined,
-          Icons.settings_outlined,
+      body: _screens[_index],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (index) => setState(() => _index = index),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(icon: Icon(Icons.speed), label: 'Network'),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
         ],
-        labels: const ["Home", "Network","Profile", "Settings"],
       ),
     );
   }

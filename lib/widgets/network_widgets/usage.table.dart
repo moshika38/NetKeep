@@ -24,32 +24,25 @@ class UsageTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.cardBgColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.white.withValues(alpha: 0.06)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildHeader(context),
-          const SizedBox(height: 8),
-          Divider(height: 1, color: AppColors.white.withValues(alpha: 0.06)),
-          for (var i = 0; i < rows.length; i++) ...[
-            _buildRow(context, rows[i]),
-            if (i < rows.length - 1)
-              Divider(height: 1, color: AppColors.white.withValues(alpha: 0.06)),
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Column(
+          children: [
+            _buildHeader(context),
+            const SizedBox(height: 8),
+            Divider(height: 1, color: AppColors.white.withValues(alpha: 0.06)),
+            for (var i = 0; i < rows.length; i++) ...[
+              _buildRow(context, rows[i]),
+              if (i < rows.length - 1)
+                Divider(
+                  height: 1,
+                  color: AppColors.white.withValues(alpha: 0.06),
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -113,10 +106,18 @@ class UsageTable extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Text(row.download, textAlign: TextAlign.right, style: valueStyle),
+            child: Text(
+              row.download,
+              textAlign: TextAlign.right,
+              style: valueStyle,
+            ),
           ),
           Expanded(
-            child: Text(row.upload, textAlign: TextAlign.right, style: valueStyle),
+            child: Text(
+              row.upload,
+              textAlign: TextAlign.right,
+              style: valueStyle,
+            ),
           ),
           Expanded(
             child: Text(

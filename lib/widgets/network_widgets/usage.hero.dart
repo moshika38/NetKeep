@@ -21,148 +21,97 @@ class UsageHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF23221F), Color(0xFF2E2413)],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.25)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryColor.withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -40,
-            right: -40,
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primaryColor.withValues(alpha: 0.14),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      margin: EdgeInsets.zero,
+      color: const Color(0xFF23221F),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Text(
-                      "Data Used",
-                      style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                        color: AppColors.white.withValues(alpha: 0.75),
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Text(
-                        "${(progress * 100).round()}% used",
-                        style: const TextStyle(
-                          color: AppColors.primaryColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      amount,
-                      style: const TextStyle(
-                        fontSize: 46,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        height: 1.0,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        unit,
-                        style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                          color: AppColors.white.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
                 Text(
-                  caption,
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-                const SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(100),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 8,
-                    backgroundColor: AppColors.white.withValues(alpha: 0.08),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.primaryColor,
-                    ),
+                  "Data Used",
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                    color: AppColors.white.withValues(alpha: 0.75),
                   ),
                 ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStat(
-                        context,
-                        icon: Icons.arrow_downward,
-                        color: AppColors.secondaryColor,
-                        value: download,
-                        label: "Download",
-                      ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 34,
-                      color: AppColors.white.withValues(alpha: 0.08),
-                    ),
-                    Expanded(
-                      child: _buildStat(
-                        context,
-                        icon: Icons.arrow_upward,
-                        color: AppColors.primaryColor,
-                        value: upload,
-                        label: "Upload",
-                      ),
-                    ),
-                  ],
+                const Spacer(),
+                Text(
+                  "${(progress * 100).round()}%",
+                  style: const TextStyle(
+                    color: AppColors.primaryColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  amount,
+                  style: const TextStyle(
+                    fontSize: 44,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    unit,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(caption, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(100),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 8,
+                backgroundColor: Colors.white10,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.primaryColor,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStat(
+                    context,
+                    icon: Icons.arrow_downward,
+                    color: AppColors.secondaryColor,
+                    value: download,
+                    label: "Download",
+                  ),
+                ),
+                Container(width: 1, height: 32, color: Colors.white12),
+                Expanded(
+                  child: _buildStat(
+                    context,
+                    icon: Icons.arrow_upward,
+                    color: AppColors.primaryColor,
+                    value: upload,
+                    label: "Upload",
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -183,15 +132,12 @@ class UsageHero extends StatelessWidget {
           children: [
             Text(
               value,
-              style: Theme.of(context).textTheme.bodySmall!.copyWith(
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ],

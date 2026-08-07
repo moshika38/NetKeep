@@ -12,19 +12,19 @@ class _ProfileOption {
 const _options = [
   _ProfileOption(
     Icons.sync,
-    "Normal Model",
+    "Normal Mode",
     "Interval 5s · Balanced",
     AppColors.primaryColor,
   ),
   _ProfileOption(
     Icons.battery_charging_full,
-    "Saver Model",
+    "Saver Mode (Recommended)",
     "Interval 10s · Power saving",
     AppColors.secondaryColor,
   ),
   _ProfileOption(
     Icons.sports_esports,
-    "Game Model",
+    "Game Mode",
     "Interval 2s · Low latency",
     AppColors.tertiaryColor,
   ),
@@ -43,66 +43,28 @@ class ProfileDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final option = _options[selectedIndex];
-    return GestureDetector(
-      onTap: () => _showPicker(context),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.cardBgColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.white.withValues(alpha: 0.06)),
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: option.color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(option.icon, color: option.color, size: 20),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [option.color, option.color.withValues(alpha: 0.6)],
-                ),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(option.icon, size: 22, color: Colors.white),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    option.title,
-                    style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    option.subtitle,
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: AppColors.white.withValues(alpha: 0.06),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.keyboard_arrow_down,
-                size: 20,
-                color: AppColors.iconColor,
-              ),
-            ),
-          ],
+        title: Text(
+          option.title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        subtitle: Text(option.subtitle),
+        trailing: const Icon(Icons.expand_more),
+        onTap: () => _showPicker(context),
       ),
     );
   }
@@ -110,116 +72,55 @@ class ProfileDropdown extends StatelessWidget {
   void _showPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
+      backgroundColor: AppColors.cardBgColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (sheetContext) {
-        return Container(
-          margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          decoration: BoxDecoration(
-            color: AppColors.cardBgColor,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.white.withValues(alpha: 0.08)),
-          ),
+        return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  "Select Profile",
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              for (var i = 0; i < _options.length; i++)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   decoration: BoxDecoration(
-                    color: AppColors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(100),
+                    color: i == selectedIndex
+                        ? AppColors.primaryColor.withValues(alpha: 0.08)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: i == selectedIndex
+                          ? AppColors.primaryColor
+                          : AppColors.white.withValues(alpha: 0.06),
+                      width: i == selectedIndex ? 1.5 : 1,
+                    ),
+                  ),
+                  child: ListTile(
+                    leading: Icon(_options[i].icon, color: _options[i].color),
+                    title: Text(_options[i].title),
+                    subtitle: Text(_options[i].subtitle),
+                    trailing: i == selectedIndex
+                        ? const Icon(Icons.check, color: AppColors.primaryColor)
+                        : null,
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      onChanged(i);
+                    },
                   ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                "Select Profile",
-                style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                "Choose a power profile",
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-              const SizedBox(height: 14),
-              for (var i = 0; i < _options.length; i++)
-                _buildOptionTile(sheetContext, i),
+              const SizedBox(height: 8),
             ],
           ),
         );
       },
-    );
-  }
-
-  Widget _buildOptionTile(BuildContext context, int index) {
-    final option = _options[index];
-    final selected = index == selectedIndex;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.pop(context);
-            onChanged(index);
-          },
-          borderRadius: BorderRadius.circular(14),
-          child: Ink(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: selected ? option.color.withValues(alpha: 0.12) : Colors.transparent,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: selected
-                    ? option.color.withValues(alpha: 0.5)
-                    : AppColors.white.withValues(alpha: 0.06),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: option.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(option.icon, size: 18, color: option.color),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        option.title,
-                        style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        option.subtitle,
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    ],
-                  ),
-                ),
-                if (selected)
-                  Icon(Icons.check_circle, size: 20, color: option.color),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
