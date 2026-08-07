@@ -3,8 +3,7 @@ import 'package:netkeep/presentation/home/home.screen.dart';
 import 'package:netkeep/presentation/profile/profile.screen.dart';
 import 'package:netkeep/presentation/network/network.screen.dart';
 import 'package:netkeep/presentation/settings/settings.screen.dart';
-import 'package:netkeep/utils/theme.dart';
- 
+import 'package:netkeep/widgets/bottom.nav.dart';
 
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
@@ -16,8 +15,8 @@ class ShellScreen extends StatefulWidget {
 class _ShellScreenState extends State<ShellScreen> {
   List screens = [
     HomeScreen(),
-    ProfileScreen(),
     NetworkScreen(),
+    ProfileScreen(),
     SettingsScreen(),
   ];
 
@@ -28,26 +27,20 @@ class _ShellScreenState extends State<ShellScreen> {
     return Scaffold(
        
       body: screens[activeIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: AppColors.cardBgColor,
+      bottomNavigationBar: AppBottomNav(
         currentIndex: activeIndex,
-        onTap: (index) {
+        onChanged: (index) {
           setState(() {
             activeIndex = index;
           });
         },
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_customize_outlined),
-            label: "Home",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_backup_restore_outlined),
-            label: "Profile",
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.speed), label: "Network"),
-           
+        icons: const [
+          Icons.dashboard_customize_outlined,
+          Icons.speed,
+          Icons.settings_backup_restore_outlined,
+          Icons.settings_outlined,
         ],
+        labels: const ["Home", "Network","Profile", "Settings"],
       ),
     );
   }
