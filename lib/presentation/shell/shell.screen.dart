@@ -46,10 +46,7 @@ class _ShellScreenState extends State<ShellScreen> {
             label: "Profile",
           ),
           BottomNavigationBarItem(icon: Icon(Icons.speed), label: "Network"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            label: "Settings",
-          ),
+           
         ],
       ),
     );

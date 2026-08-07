@@ -3,19 +3,30 @@ import 'package:netkeep/utils/theme.dart';
 
 class AppCard extends StatelessWidget {
   final Widget child;
-  const AppCard({super.key, required this.child});
+  final EdgeInsetsGeometry padding;
+  const AppCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      child: Card(
+      decoration: BoxDecoration(
         color: AppColors.cardBgColor,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: child,
-        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.white.withOpacity(0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
+      child: Padding(padding: padding, child: child),
     );
   }
 }
