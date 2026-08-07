@@ -2,14 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:netkeep/utils/theme.dart';
 
 class LiveConsoleWidget extends StatelessWidget {
-  const LiveConsoleWidget({super.key});
-
-  static const _logs = [
-    ("[10:45:10]", " Initializing connection... OK"),
-    ("[10:45:11]", " Handshake established."),
-    ("[10:45:12]", " https://oneapp.hutch.lk -> 200 OK (38ms)"),
-    ("[01:09:56]", " https://auth.hutch.lk -> 200 OK (23ms)"),
-  ];
+  final List<(String, String)> _logs;
+  const LiveConsoleWidget({super.key, required this._logs});
 
   @override
   Widget build(BuildContext context) {
@@ -26,18 +20,23 @@ class LiveConsoleWidget extends StatelessWidget {
         children: [
           _buildTitleBar(context),
           Divider(height: 1, color: AppColors.white.withValues(alpha: 0.08)),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (var i = 0; i < _logs.length; i++) ...[
-                  _buildLogLine(_logs[i].$1, _logs[i].$2),
-                  if (i < _logs.length - 1) const SizedBox(height: 6),
-                ],
-                const SizedBox(height: 6),
-                _buildPromptLine(),
-              ],
+
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(14),
+
+              itemCount: _logs.length + 1,
+              separatorBuilder: (context, index) => const SizedBox(height: 6),
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return _buildPromptLine();
+                }
+
+                final reversedIndex = _logs.length - index;
+                final log = _logs[reversedIndex];
+
+                return _buildLogLine(log.$1, log.$2);
+              },
             ),
           ),
         ],
@@ -117,14 +116,30 @@ class LiveConsoleWidget extends StatelessWidget {
           ),
           TextSpan(
             text: message,
-            style: const TextStyle(
-              color: AppColors.textColor,
+            style: TextStyle(
+              color: _resolveMessageColor(message),
               fontWeight: FontWeight.w500,
             ),
           ),
         ],
       ),
     );
+  }
+
+  Color _resolveMessageColor(String message) {
+    final statusMatch = RegExp(r'Status:\s*(\d{3}|[A-Za-z]+)').firstMatch(message);
+    final status = statusMatch?.group(1) ?? '';
+
+    if (status.toLowerCase() == 'timeout' || status.toLowerCase() == 'error') {
+      return AppColors.tertiaryColor;
+    }
+
+    final code = int.tryParse(status);
+    if (code != null && code >= 400 && code < 500) {
+      return Colors.orangeAccent.withValues(alpha: 0.9);
+    }
+
+    return AppColors.textColor;
   }
 
   Widget _buildPromptLine() {

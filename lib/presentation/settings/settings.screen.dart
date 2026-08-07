@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
 import 'package:netkeep/widgets/section.header.dart';
@@ -12,6 +13,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _speedNotifications = true;
+  bool _autoClearConsole = AppPreferences.autoClearConsole;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +56,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _speedNotifications
                     ? 'Shows current speed in the status bar'
                     : 'Speed alerts are muted',
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          const SectionHeader(
+            title: 'Console',
+            subtitle: 'Live console behavior',
+          ),
+          const SizedBox(height: 12),
+          Card(
+            margin: EdgeInsets.zero,
+            child: SwitchListTile(
+              value: _autoClearConsole,
+              onChanged: (value) {
+                setState(() => _autoClearConsole = value);
+                AppPreferences.setAutoClearConsole(value);
+              },
+              secondary: const _TileIcon(
+                icon: Icons.cleaning_services,
+                color: AppColors.tertiaryColor,
+              ),
+              title: const Text(
+                'Auto Clear Console',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                _autoClearConsole
+                    ? 'Clears logs when keep-alive stops'
+                    : 'Keeps logs after keep-alive stops',
               ),
             ),
           ),

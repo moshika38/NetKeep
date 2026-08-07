@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:netkeep/services/app.preferences.dart';
+import 'package:netkeep/services/ping.services.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
 import 'package:netkeep/widgets/home_widgets/live.console.dart';
@@ -14,10 +16,57 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _activeProfileIndex = 0;
+  int _customIntervalSeconds = 5;
   bool _isRunning = false;
+  final List<(String, String)> _logs = [];
+  final PingService _pingService = PingService();
 
   void _toggleKeepAlive() {
-    setState(() => _isRunning = !_isRunning);
+    if (_isRunning) {
+      _pingService.stopPing();
+      setState(() {
+        _isRunning = false;
+        if (AppPreferences.autoClearConsole) {
+          _logs.clear();
+        }
+      });
+    } else {
+      setState(() {
+        _isRunning = true;
+        _logs.clear();
+      });
+      runProfile();
+    }
+  }
+
+  void _handleLog((String, String) log) {
+    if (!mounted) return;
+    setState(() {
+      _logs.add(log);
+    });
+    print(log);
+  }
+
+  void runProfile() {
+    switch (_activeProfileIndex) {
+      case 0:
+        _pingService.startNormalMode(_handleLog);
+        break;
+      case 2:
+        _pingService.startCustomMode(_customIntervalSeconds, _handleLog);
+        break;
+      case 1:
+        _pingService.startSaverMode(_handleLog);
+        break;
+      default:
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pingService.stopPing();
+    super.dispose();
   }
 
   @override
@@ -34,9 +83,9 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 12),
           _StatusCard(running: _isRunning),
           const SizedBox(height: 16),
-          SizedBox(height: 55,
+          SizedBox(
+            height: 55,
             child: FilledButton.icon(
-               
               onPressed: _toggleKeepAlive,
               icon: Icon(_isRunning ? Icons.stop : Icons.power_settings_new),
               label: Text(_isRunning ? 'Stop Keep-Alive' : 'Start Keep-Alive'),
@@ -61,9 +110,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ProfileDropdown(
             selectedIndex: _activeProfileIndex,
             onChanged: (index) => setState(() => _activeProfileIndex = index),
+            customIntervalSeconds: _customIntervalSeconds,
+            onCustomIntervalChanged: (value) =>
+                setState(() => _customIntervalSeconds = value),
           ),
           const SizedBox(height: 28),
-          const LiveConsoleWidget(),
+          LiveConsoleWidget(logs: _logs),
         ],
       ),
     );
@@ -83,7 +135,10 @@ class _StatusCard extends StatelessWidget {
         margin: EdgeInsets.zero,
         child: Center(
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
             leading: Container(
               width: 44,
               height: 44,
@@ -104,7 +159,9 @@ class _StatusCard extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            subtitle: Text(running ? 'Keep-Alive is active' : 'Connection is idle'),
+            subtitle: Text(
+              running ? 'Keep-Alive is active' : 'Connection is idle',
+            ),
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -118,7 +175,10 @@ class _StatusCard extends StatelessWidget {
                   Container(
                     width: 6,
                     height: 6,
-                    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                   const SizedBox(width: 6),
                   Text(

@@ -6,7 +6,14 @@ class _ProfileOption {
   final String title;
   final String subtitle;
   final Color color;
-  const _ProfileOption(this.icon, this.title, this.subtitle, this.color);
+  final bool isCustom;
+  const _ProfileOption(
+    this.icon,
+    this.title,
+    this.subtitle,
+    this.color, {
+    this.isCustom = false,
+  });
 }
 
 const _options = [
@@ -19,52 +26,117 @@ const _options = [
   _ProfileOption(
     Icons.battery_charging_full,
     "Saver Mode (Recommended)",
-    "Interval 10s · Power saving",
+    "Interval 20s · Power saving",
     AppColors.secondaryColor,
   ),
   _ProfileOption(
-    Icons.sports_esports,
-    "Game Mode",
-    "Interval 2s · Low latency",
+    Icons.tune,
+    "Custom Mode",
+    "Adjustable interval",
     AppColors.tertiaryColor,
+    isCustom: true,
   ),
 ];
 
 class ProfileDropdown extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onChanged;
+  final int customIntervalSeconds;
+  final ValueChanged<int> onCustomIntervalChanged;
 
   const ProfileDropdown({
     super.key,
     required this.selectedIndex,
     required this.onChanged,
+    required this.customIntervalSeconds,
+    required this.onCustomIntervalChanged,
   });
+
+  static const int _minIntervalSeconds = 5;
+  static const int _intervalStep = 5;
 
   @override
   Widget build(BuildContext context) {
     final option = _options[selectedIndex];
     return Card(
       margin: EdgeInsets.zero,
-      child: ListTile(
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: option.color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: option.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(option.icon, color: option.color, size: 20),
+            ),
+            title: Text(
+              option.isCustom
+                  ? "Custom (${customIntervalSeconds}s)"
+                  : option.title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            subtitle: Text(
+              option.isCustom
+                  ? "Interval ${customIntervalSeconds}s · Adjustable"
+                  : option.subtitle,
+            ),
+            trailing: const Icon(Icons.expand_more),
+            onTap: () => _showPicker(context),
           ),
-          child: Icon(option.icon, color: option.color, size: 20),
-        ),
-        title: Text(
-          option.title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Text(option.subtitle),
-        trailing: const Icon(Icons.expand_more),
-        onTap: () => _showPicker(context),
+          if (option.isCustom)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Interval duration",
+                    style: TextStyle(
+                      color: AppColors.textColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      _StepperButton(
+                        icon: Icons.remove,
+                        onPressed: customIntervalSeconds > _minIntervalSeconds
+                            ? () => onCustomIntervalChanged(
+                                  customIntervalSeconds - _intervalStep,
+                                )
+                            : null,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text(
+                          "${customIntervalSeconds}s",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      _StepperButton(
+                        icon: Icons.add,
+                        onPressed: () => onCustomIntervalChanged(
+                          customIntervalSeconds + _intervalStep,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -121,6 +193,43 @@ class ProfileDropdown extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _StepperButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onPressed;
+  const _StepperButton({required this.icon, this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(100),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: enabled
+              ? AppColors.primaryColor.withValues(alpha: 0.12)
+              : AppColors.white.withValues(alpha: 0.04),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: enabled
+                ? AppColors.primaryColor
+                : AppColors.white.withValues(alpha: 0.06),
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: enabled
+              ? AppColors.primaryColor
+              : AppColors.textColor.withValues(alpha: 0.4),
+        ),
+      ),
     );
   }
 }
