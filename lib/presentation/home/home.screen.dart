@@ -5,8 +5,7 @@ import 'package:netkeep/widgets/app.card.dart';
 import 'package:netkeep/widgets/home_widgets/app.header.dart';
 import 'package:netkeep/widgets/home_widgets/home.app.bar.dart';
 import 'package:netkeep/widgets/home_widgets/live.console.dart';
-import 'package:netkeep/widgets/home_widgets/profile.cards.dart';
-import 'package:netkeep/widgets/speed.banner.dart';
+import 'package:netkeep/widgets/home_widgets/profile.dropdown.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,13 +17,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int activeProfileIndex = 0;
   bool isKeepAliveRunning = false;
-
-  String get _greeting {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return "Good Morning";
-    if (hour < 17) return "Good Afternoon";
-    return "Good Evening";
-  }
 
   void _toggleKeepAlive() {
     setState(() => isKeepAliveRunning = !isKeepAliveRunning);
@@ -39,10 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildGreetingHeader(context),
-            const SizedBox(height: 18),
-            _buildSpeedHeroCard(context),
-            const SizedBox(height: 22),
+            const SizedBox(height: 16),
+
             const AppHeader(
               title: "NetKeep Status",
               subtitle: "Connection control center",
@@ -56,27 +46,10 @@ class _HomeScreenState extends State<HomeScreen> {
               title: "Keep-Alive Profiles",
               subtitle: "Select a power profile",
             ),
-            const SizedBox(height: 14),
-            ProfileCards(
-              isActive: activeProfileIndex == 0,
-              icon: Icons.sync,
-              title: "Normal Model",
-              subTitle: "Interval 5s · Balanced",
-              onTap: () => setState(() => activeProfileIndex = 0),
-            ),
-            ProfileCards(
-              isActive: activeProfileIndex == 1,
-              icon: Icons.battery_charging_full,
-              title: "Saver Model",
-              subTitle: "Interval 10s · Power saving",
-              onTap: () => setState(() => activeProfileIndex = 1),
-            ),
-            ProfileCards(
-              isActive: activeProfileIndex == 2,
-              icon: Icons.sports_esports,
-              title: "Game Model",
-              subTitle: "Interval 2s · Low latency",
-              onTap: () => setState(() => activeProfileIndex = 2),
+            const SizedBox(height: 12),
+            ProfileDropdown(
+              selectedIndex: activeProfileIndex,
+              onChanged: (index) => setState(() => activeProfileIndex = index),
             ),
             const SizedBox(height: 24),
             const AppHeader(
@@ -87,211 +60,6 @@ class _HomeScreenState extends State<HomeScreen> {
             const LiveConsoleWidget(),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildGreetingHeader(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _greeting,
-              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "Keep your connection alive",
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.cardBgColor,
-            borderRadius: BorderRadius.circular(100),
-            border: Border.all(color: AppColors.white.withOpacity(0.08)),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.calendar_today_outlined,
-                size: 13,
-                color: AppColors.iconColor,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                _todayLabel,
-                style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  String get _todayLabel {
-    const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ];
-    final now = DateTime.now();
-    return "${months[now.month - 1]} ${now.day}, ${now.year}";
-  }
-
-  Widget _buildSpeedHeroCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF23221F), Color(0xFF2E2413)],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.primaryColor.withOpacity(0.25)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryColor.withOpacity(0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -40,
-            right: -40,
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primaryColor.withOpacity(0.14),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const _PulseDot(),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Live Network Speed",
-                            style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                              color: AppColors.white.withOpacity(0.75),
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          const Icon(
-                            Icons.arrow_downward,
-                            size: 22,
-                            color: AppColors.secondaryColor,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "15.5",
-                            style: TextStyle(
-                              fontSize: 46,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              height: 1.0,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              "Mbps",
-                              style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                                color: AppColors.white.withOpacity(0.6),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      SpeedBanner(
-                        speed: "1.2",
-                        icon: Icons.arrow_upward,
-                        color: AppColors.primaryColor,
-                      ),
-                    ],
-                  ),
-                ),
-                _buildSpeedRing(context),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSpeedRing(BuildContext context) {
-    return SizedBox(
-      width: 92,
-      height: 92,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 92,
-            height: 92,
-            child: CircularProgressIndicator(
-              value: 0.68,
-              strokeWidth: 8,
-              strokeCap: StrokeCap.round,
-              backgroundColor: AppColors.white.withOpacity(0.08),
-              color: AppColors.primaryColor,
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.speed,
-                size: 22,
-                color: AppColors.primaryColor,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                "68%",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -353,54 +121,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PulseDot extends StatefulWidget {
-  const _PulseDot();
-
-  @override
-  State<_PulseDot> createState() => _PulseDotState();
-}
-
-class _PulseDotState extends State<_PulseDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: Tween(begin: 0.2, end: 1.0).animate(_controller),
-      child: Container(
-        width: 9,
-        height: 9,
-        decoration: BoxDecoration(
-          color: AppColors.secondaryColor,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.secondaryColor.withOpacity(0.7),
-              blurRadius: 6,
-            ),
-          ],
-        ),
       ),
     );
   }
