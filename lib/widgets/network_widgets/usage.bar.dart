@@ -28,7 +28,7 @@ class UsageBar extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, size: 18, color: color),
@@ -58,7 +58,7 @@ class UsageBar extends StatelessWidget {
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 6,
-            backgroundColor: AppColors.white.withOpacity(0.08),
+            backgroundColor: AppColors.white.withValues(alpha: 0.08),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),

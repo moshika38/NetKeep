@@ -51,7 +51,7 @@ class ProfileDropdown extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.cardBgColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.white.withOpacity(0.06)),
+          border: Border.all(color: AppColors.white.withValues(alpha: 0.06)),
         ),
         child: Row(
           children: [
@@ -62,7 +62,7 @@ class ProfileDropdown extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [option.color, option.color.withOpacity(0.6)],
+                  colors: [option.color, option.color.withValues(alpha: 0.6)],
                 ),
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -92,7 +92,7 @@ class ProfileDropdown extends StatelessWidget {
               width: 30,
               height: 30,
               decoration: BoxDecoration(
-                color: AppColors.white.withOpacity(0.06),
+                color: AppColors.white.withValues(alpha: 0.06),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -119,7 +119,7 @@ class ProfileDropdown extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.cardBgColor,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.white.withOpacity(0.08)),
+            border: Border.all(color: AppColors.white.withValues(alpha: 0.08)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -130,7 +130,7 @@ class ProfileDropdown extends StatelessWidget {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.white.withOpacity(0.15),
+                    color: AppColors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(100),
                   ),
                 ),
@@ -174,12 +174,12 @@ class ProfileDropdown extends StatelessWidget {
           child: Ink(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: selected ? option.color.withOpacity(0.12) : Colors.transparent,
+              color: selected ? option.color.withValues(alpha: 0.12) : Colors.transparent,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: selected
-                    ? option.color.withOpacity(0.5)
-                    : AppColors.white.withOpacity(0.06),
+                    ? option.color.withValues(alpha: 0.5)
+                    : AppColors.white.withValues(alpha: 0.06),
               ),
             ),
             child: Row(
@@ -188,7 +188,7 @@ class ProfileDropdown extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: option.color.withOpacity(0.12),
+                    color: option.color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(option.icon, size: 18, color: option.color),

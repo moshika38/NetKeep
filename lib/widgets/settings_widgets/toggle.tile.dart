@@ -30,8 +30,8 @@ class ToggleTile extends StatelessWidget {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: AppColors.primaryColor,
-        activeTrackColor: AppColors.primaryColor.withOpacity(0.3),
+        activeThumbColor: AppColors.primaryColor,
+        activeTrackColor: AppColors.primaryColor.withValues(alpha: 0.3),
       ),
     );
   }

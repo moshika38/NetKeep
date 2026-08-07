@@ -17,10 +17,10 @@ class AppCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBgColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.white.withOpacity(0.06)),
+        border: Border.all(color: AppColors.white.withValues(alpha: 0.06)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),

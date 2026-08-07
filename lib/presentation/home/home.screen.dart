@@ -94,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.12),
+              color: accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(100),
             ),
             child: Row(
@@ -186,7 +186,7 @@ class _PowerButtonState extends State<_PowerButton>
               border: Border.all(color: color, width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(glow),
+                  color: color.withValues(alpha: glow),
                   blurRadius: 20 * (widget.active ? 1 + _controller.value : 1),
                 ),
               ],

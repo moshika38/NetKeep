@@ -30,10 +30,10 @@ class UsageTable extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBgColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.white.withOpacity(0.06)),
+        border: Border.all(color: AppColors.white.withValues(alpha: 0.06)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -43,11 +43,11 @@ class UsageTable extends StatelessWidget {
         children: [
           _buildHeader(context),
           const SizedBox(height: 8),
-          Divider(height: 1, color: AppColors.white.withOpacity(0.06)),
+          Divider(height: 1, color: AppColors.white.withValues(alpha: 0.06)),
           for (var i = 0; i < rows.length; i++) ...[
             _buildRow(context, rows[i]),
             if (i < rows.length - 1)
-              Divider(height: 1, color: AppColors.white.withOpacity(0.06)),
+              Divider(height: 1, color: AppColors.white.withValues(alpha: 0.06)),
           ],
         ],
       ),

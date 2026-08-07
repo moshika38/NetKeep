@@ -30,10 +30,10 @@ class UsageHero extends StatelessWidget {
           colors: [Color(0xFF23221F), Color(0xFF2E2413)],
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.primaryColor.withOpacity(0.25)),
+        border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.25)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryColor.withOpacity(0.12),
+            color: AppColors.primaryColor.withValues(alpha: 0.12),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -49,7 +49,7 @@ class UsageHero extends StatelessWidget {
               height: 140,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primaryColor.withOpacity(0.14),
+                color: AppColors.primaryColor.withValues(alpha: 0.14),
               ),
             ),
           ),
@@ -63,7 +63,7 @@ class UsageHero extends StatelessWidget {
                     Text(
                       "Data Used",
                       style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                        color: AppColors.white.withOpacity(0.75),
+                        color: AppColors.white.withValues(alpha: 0.75),
                         letterSpacing: 0.4,
                       ),
                     ),
@@ -74,7 +74,7 @@ class UsageHero extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withOpacity(0.14),
+                        color: AppColors.primaryColor.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(100),
                       ),
                       child: Text(
@@ -108,7 +108,7 @@ class UsageHero extends StatelessWidget {
                       child: Text(
                         unit,
                         style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                          color: AppColors.white.withOpacity(0.6),
+                          color: AppColors.white.withValues(alpha: 0.6),
                         ),
                       ),
                     ),
@@ -125,7 +125,7 @@ class UsageHero extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 8,
-                    backgroundColor: AppColors.white.withOpacity(0.08),
+                    backgroundColor: AppColors.white.withValues(alpha: 0.08),
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       AppColors.primaryColor,
                     ),
@@ -146,7 +146,7 @@ class UsageHero extends StatelessWidget {
                     Container(
                       width: 1,
                       height: 34,
-                      color: AppColors.white.withOpacity(0.08),
+                      color: AppColors.white.withValues(alpha: 0.08),
                     ),
                     Expanded(
                       child: _buildStat(

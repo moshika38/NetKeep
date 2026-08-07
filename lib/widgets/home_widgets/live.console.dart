@@ -11,10 +11,10 @@ class LiveConsoleWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.backgroundColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.white.withOpacity(0.08)),
+        border: Border.all(color: AppColors.white.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -25,7 +25,7 @@ class LiveConsoleWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildConsoleHeader(context),
-          Divider(height: 1, color: AppColors.white.withOpacity(0.06)),
+          Divider(height: 1, color: AppColors.white.withValues(alpha: 0.06)),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -80,7 +80,7 @@ class LiveConsoleWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.secondaryColor.withOpacity(0.12),
+              color: AppColors.secondaryColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(100),
             ),
             child: const Row(
@@ -112,7 +112,7 @@ class LiveConsoleWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: color.withOpacity(0.5), blurRadius: 4)],
+        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 4)],
       ),
     );
   }
@@ -128,7 +128,7 @@ class LiveConsoleWidget extends StatelessWidget {
         children: [
           TextSpan(
             text: time,
-            style: TextStyle(color: AppColors.textColor.withOpacity(0.35)),
+            style: TextStyle(color: AppColors.textColor.withValues(alpha: 0.35)),
           ),
           TextSpan(
             text: message,
@@ -181,7 +181,7 @@ class _PulseDotState extends State<_PulseDot>
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: AppColors.secondaryColor.withOpacity(0.7),
+              color: AppColors.secondaryColor.withValues(alpha: 0.7),
               blurRadius: 6,
             ),
           ],

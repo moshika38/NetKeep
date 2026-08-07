@@ -35,10 +35,10 @@ class ProfileModeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBgColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: accent.withOpacity(0.25), width: 1.2),
+        border: Border.all(color: accent.withValues(alpha: 0.25), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: accent.withOpacity(0.08),
+            color: accent.withValues(alpha: 0.08),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -69,12 +69,12 @@ class ProfileModeCard extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [accent, accent.withOpacity(0.6)],
+              colors: [accent, accent.withValues(alpha: 0.6)],
             ),
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: accent.withOpacity(0.35),
+                color: accent.withValues(alpha: 0.35),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -113,9 +113,9 @@ class ProfileModeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: accent.withOpacity(0.12),
+        color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(100),
-        border: Border.all(color: accent.withOpacity(0.3)),
+        border: Border.all(color: accent.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -150,13 +150,13 @@ class ProfileModeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.backgroundColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.white.withOpacity(0.06)),
+        border: Border.all(color: AppColors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
         children: [
           for (var i = 0; i < specs.length; i++) ...[
             if (i > 0)
-              Divider(height: 18, color: AppColors.white.withOpacity(0.05)),
+              Divider(height: 18, color: AppColors.white.withValues(alpha: 0.05)),
             _buildSpecRow(context, specs[i]),
           ],
         ],

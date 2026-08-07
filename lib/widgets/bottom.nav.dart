@@ -23,10 +23,10 @@ class AppBottomNav extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBgColor,
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: AppColors.white.withOpacity(0.08)),
+        border: Border.all(color: AppColors.white.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.35),
+            color: Colors.black.withValues(alpha: 0.35),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -69,7 +69,7 @@ class AppBottomNav extends StatelessWidget {
                 boxShadow: active
                     ? [
                         BoxShadow(
-                          color: AppColors.primaryColor.withOpacity(0.35),
+                          color: AppColors.primaryColor.withValues(alpha: 0.35),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),

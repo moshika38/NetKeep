@@ -57,7 +57,7 @@ class AppHeader extends StatelessWidget {
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              color: AppColors.white.withOpacity(0.06),
+              color: AppColors.white.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, size: 16),

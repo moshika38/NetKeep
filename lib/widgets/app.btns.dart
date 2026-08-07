@@ -38,7 +38,7 @@ class AppBtns extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: accent.withOpacity(0.4),
+                color: accent.withValues(alpha: 0.4),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
