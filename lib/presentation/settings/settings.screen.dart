@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:netkeep/services/app.info.service.dart';
 import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
@@ -103,34 +104,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Card(
             margin: EdgeInsets.zero,
             child: Column(
-              children: const [
+              children: [
                 ListTile(
-                  leading: _TileIcon(
+                  leading: const _TileIcon(
                     icon: Icons.info_outline,
                     color: AppColors.primaryColor,
                   ),
-                  title: _TileTitle('App Version'),
-                  subtitle: Text('1.0.0 (build 1)'),
+                  title: const _TileTitle('App Version'),
+                  subtitle: FutureBuilder<String>(
+                    future: AppInfoService.getAppVersion(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        return Text(snapshot.data!);
+                      }
+                      return const Text('v1.0.0');
+                    },
+                  ),
                 ),
-                Divider(indent: 16, endIndent: 16),
+                const Divider(indent: 16, endIndent: 16),
                 ListTile(
-                  leading: _TileIcon(
+                  leading: const _TileIcon(
                     icon: Icons.privacy_tip_outlined,
                     color: AppColors.secondaryColor,
                   ),
-                  title: _TileTitle('Privacy Policy'),
-                  subtitle: Text('How we handle your data'),
-                  trailing: Icon(Icons.chevron_right),
+                  title: const _TileTitle('Privacy Policy'),
+                  subtitle: const Text('How we handle your data'),
+                  trailing: const Icon(Icons.chevron_right),
                 ),
-                Divider(indent: 16, endIndent: 16),
+                const Divider(indent: 16, endIndent: 16),
                 ListTile(
-                  leading: _TileIcon(
+                  leading: const _TileIcon(
                     icon: Icons.policy_outlined,
                     color: AppColors.tertiaryColor,
                   ),
-                  title: _TileTitle('Terms of Service'),
-                  subtitle: Text('App usage terms'),
-                  trailing: Icon(Icons.chevron_right),
+                  title: const _TileTitle('Terms of Service'),
+                  subtitle: const Text('App usage terms'),
+                  trailing: const Icon(Icons.chevron_right),
                 ),
               ],
             ),

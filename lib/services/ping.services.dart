@@ -6,12 +6,16 @@ import 'package:intl/intl.dart';
 
 class PingService {
   Timer? _pingTimer;
+  late http.Client _httpClient;
 
   final String targetUrl = dotenv.env['TARGET_URL'] ?? 'https://google.com';
 
+  PingService() {
+    _httpClient = http.Client();
+  }
+
   void startNormalMode(void Function((String, String) log) onLogGenerated) {
     WakelockPlus.disable();
-
     stopPing();
 
     final String initTime = DateFormat('HH:mm:ss').format(DateTime.now());
@@ -23,8 +27,14 @@ class PingService {
       final String currentTime = DateFormat('HH:mm:ss').format(DateTime.now());
 
       try {
-        final response = await http
-            .head(Uri.parse(targetUrl))
+        final response = await _httpClient
+            .head(
+              Uri.parse(targetUrl),
+              headers: {
+                'Connection': 'keep-alive',
+                'User-Agent': 'Flutter-PingService/1.0',
+              },
+            )
             .timeout(const Duration(seconds: 4));
 
         stopwatch.stop();
@@ -50,7 +60,6 @@ class PingService {
 
   void startSaverMode(void Function((String, String) log) onLogGenerated) {
     WakelockPlus.disable();
-
     stopPing();
 
     final String initTime = DateFormat('HH:mm:ss').format(DateTime.now());
@@ -61,8 +70,14 @@ class PingService {
       final String currentTime = DateFormat('HH:mm:ss').format(DateTime.now());
 
       try {
-        final response = await http
-            .head(Uri.parse(targetUrl))
+        final response = await _httpClient
+            .head(
+              Uri.parse(targetUrl),
+              headers: {
+                'Connection': 'keep-alive',
+                'User-Agent': 'Flutter-PingService/1.0',
+              },
+            )
             .timeout(const Duration(seconds: 4));
 
         stopwatch.stop();
@@ -103,8 +118,15 @@ class PingService {
       final String currentTime = DateFormat('HH:mm:ss').format(DateTime.now());
 
       try {
-        final response = await http
-            .head(Uri.parse(targetUrl))
+        final response = await _httpClient
+            .head(
+              Uri.parse(targetUrl),
+              headers: {
+                'Connection': 'keep-alive',
+                'User-Agent': 'Flutter-PingService/1.0',
+                'Accept-Encoding': 'gzip, deflate',
+              },
+            )
             .timeout(const Duration(seconds: 4));
 
         stopwatch.stop();
@@ -112,7 +134,7 @@ class PingService {
 
         onLogGenerated((
           "[$currentTime]",
-          " Custom   (${intervalSeconds}s) | Time: ${timeTotal.toStringAsFixed(3)}s | Status: ${response.statusCode}",
+          " Custom (${intervalSeconds}s) | Time: ${timeTotal.toStringAsFixed(3)}s | Status: ${response.statusCode}",
         ));
       } catch (e) {
         stopwatch.stop();
@@ -120,7 +142,7 @@ class PingService {
 
         onLogGenerated((
           "[$currentTime]",
-          " Custom   (${intervalSeconds}s) | Time: ${timeTotal.toStringAsFixed(3)}s | Status: Timeout/Error",
+          " Custom (${intervalSeconds}s) | Time: ${timeTotal.toStringAsFixed(3)}s | Status: Timeout/Error",
         ));
       }
     });
@@ -130,5 +152,10 @@ class PingService {
     _pingTimer?.cancel();
     _pingTimer = null;
     WakelockPlus.disable();
+  }
+
+  void dispose() {
+    stopPing();
+    _httpClient.close();
   }
 }
