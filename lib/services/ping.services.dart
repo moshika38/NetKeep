@@ -8,10 +8,14 @@ class PingService {
   Timer? _pingTimer;
   late http.Client _httpClient;
 
-  final String targetUrl = dotenv.env['TARGET_URL'] ?? 'https://google.com';
+  String targetUrl = dotenv.env['TARGET_URL'] ?? 'https://google.com';
 
   PingService() {
     _httpClient = http.Client();
+  }
+
+  void setTargetUrl(String url) {
+    targetUrl = url;
   }
 
   void startNormalMode(void Function((String, String) log) onLogGenerated) {

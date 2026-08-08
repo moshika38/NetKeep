@@ -3,7 +3,8 @@ import 'package:netkeep/utils/theme.dart';
 
 class NetKeepAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
-  const NetKeepAppBar({super.key, required this.title});
+  final List<Widget>? actions;
+  const NetKeepAppBar({super.key, required this.title, this.actions});
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -12,6 +13,7 @@ class NetKeepAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       titleSpacing: 16,
+      actions: actions,
       title: Row(
         children: [
           Container(
