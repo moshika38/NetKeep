@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:netkeep/services/app.preferences.dart';
+import 'package:netkeep/services/isp.config.dart';
 import 'package:netkeep/services/ping.services.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
+import 'package:netkeep/widgets/home_widgets/isp.dropdown.dart';
 import 'package:netkeep/widgets/home_widgets/live.console.dart';
 import 'package:netkeep/widgets/home_widgets/profile.dropdown.dart';
 import 'package:netkeep/widgets/section.header.dart';
@@ -18,8 +20,22 @@ class _HomeScreenState extends State<HomeScreen> {
   int _activeProfileIndex = 0;
   int _customIntervalSeconds = 5;
   bool _isRunning = false;
+  late String _selectedIspUrl;
   final List<(String, String)> _logs = [];
   final PingService _pingService = PingService();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIspUrl = AppPreferences.selectedIspUrl;
+    _pingService.setTargetUrl(_selectedIspUrl);
+  }
+
+  void _onIspChanged(IspConfig isp) {
+    setState(() => _selectedIspUrl = isp.url);
+    AppPreferences.setSelectedIspUrl(isp.url);
+    _pingService.setTargetUrl(isp.url);
+  }
 
   void _toggleKeepAlive() {
     if (_isRunning) {
@@ -72,7 +88,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const NetKeepAppBar(title: 'NetKeep'),
+      appBar: NetKeepAppBar(
+        title: 'NetKeep',
+        actions: [
+          IspDropdown(
+            selectedUrl: _selectedIspUrl,
+            onChanged: _onIspChanged,
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
