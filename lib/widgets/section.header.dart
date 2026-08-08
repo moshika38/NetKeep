@@ -9,24 +9,46 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 3,
-          height: 18,
+          width: 4,
+          height: 30,
           decoration: BoxDecoration(
             color: AppColors.primaryColor,
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.zero,
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                title.toUpperCase(),
+                style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                  letterSpacing: 1.2,
+                ),
+              ),
               if (subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 3),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(
+                        text: '// ',
+                        style: TextStyle(
+                          color: AppColors.secondaryColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      TextSpan(
+                        text: subtitle!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ],
           ),

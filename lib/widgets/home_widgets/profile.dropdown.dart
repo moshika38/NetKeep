@@ -68,8 +68,9 @@ class ProfileDropdown extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: option.color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+                color: option.color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.zero,
+                border: Border.all(color: option.color.withValues(alpha: 0.35)),
               ),
               child: Icon(option.icon, color: option.color, size: 20),
             ),
@@ -146,7 +147,7 @@ class ProfileDropdown extends StatelessWidget {
       context: context,
       backgroundColor: AppColors.cardBgColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.zero,
       ),
       builder: (sheetContext) {
         return SafeArea(
@@ -156,8 +157,10 @@ class ProfileDropdown extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  "Select Profile",
-                  style: Theme.of(context).textTheme.titleMedium,
+                  "SELECT PROFILE",
+                  style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
               for (var i = 0; i < _options.length; i++)
@@ -167,7 +170,7 @@ class ProfileDropdown extends StatelessWidget {
                     color: i == selectedIndex
                         ? AppColors.primaryColor.withValues(alpha: 0.08)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.zero,
                     border: Border.all(
                       color: i == selectedIndex
                           ? AppColors.primaryColor
@@ -207,7 +210,7 @@ class _StepperButton extends StatelessWidget {
     final enabled = onPressed != null;
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(100),
+      borderRadius: BorderRadius.zero,
       child: Container(
         width: 36,
         height: 36,
@@ -215,7 +218,7 @@ class _StepperButton extends StatelessWidget {
           color: enabled
               ? AppColors.primaryColor.withValues(alpha: 0.12)
               : AppColors.white.withValues(alpha: 0.04),
-          shape: BoxShape.circle,
+          borderRadius: BorderRadius.zero,
           border: Border.all(
             color: enabled
                 ? AppColors.primaryColor

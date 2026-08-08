@@ -62,7 +62,7 @@ class NetworkScreen extends StatelessWidget {
                     progress: 0.6,
                     color: AppColors.primaryColor,
                   ),
-                  Divider(height: 28, color: Colors.white12),
+                  Divider(height: 28, color: AppColors.borderColor),
                   UsageBar(
                     icon: Icons.wifi,
                     title: "Wi-Fi",

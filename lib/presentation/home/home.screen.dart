@@ -133,63 +133,74 @@ class _StatusCard extends StatelessWidget {
       height: 120,
       child: Card(
         margin: EdgeInsets.zero,
-        child: Center(
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: color, width: 3)),
+          ),
+          child: Center(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
               ),
-              child: Icon(
-                running ? Icons.wifi : Icons.wifi_off,
-                color: color,
-                size: 22,
+              leading: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.zero,
+                  border: Border.all(color: color.withValues(alpha: 0.4)),
+                ),
+                child: Icon(
+                  running ? Icons.wifi : Icons.wifi_off,
+                  color: color,
+                  size: 22,
+                ),
               ),
-            ),
-            title: Text(
-              running ? 'Connected' : 'Disconnected',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
+              title: Text(
+                running ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.8,
+                ),
               ),
-            ),
-            subtitle: Text(
-              running ? 'Keep-Alive is active' : 'Connection is idle',
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(100),
-                border: Border.all(color: color.withValues(alpha: 0.25)),
+              subtitle: Text(
+                running ? 'Keep-Alive is active' : 'Connection is idle',
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.zero,
+                  border: Border.all(color: color.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.zero,
+                        boxShadow: [
+                          BoxShadow(color: color.withValues(alpha: 0.8), blurRadius: 6),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    running ? 'Active' : 'Idle',
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                    const SizedBox(width: 7),
+                    Text(
+                      running ? 'ACTIVE' : 'IDLE',
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

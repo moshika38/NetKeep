@@ -23,8 +23,13 @@ class UsageHero extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: EdgeInsets.zero,
-      color: const Color(0xFF23221F),
-      child: Padding(
+      color: AppColors.cardAltColor,
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(
+            top: BorderSide(color: AppColors.primaryColor, width: 3),
+          ),
+        ),
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,9 +37,11 @@ class UsageHero extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  "Data Used",
+                  "DATA USED",
                   style: Theme.of(context).textTheme.bodySmall!.copyWith(
                     color: AppColors.white.withValues(alpha: 0.75),
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const Spacer(),
@@ -75,15 +82,12 @@ class UsageHero extends StatelessWidget {
             const SizedBox(height: 6),
             Text(caption, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(100),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                backgroundColor: Colors.white10,
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  AppColors.primaryColor,
-                ),
+            LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: Colors.white10,
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primaryColor,
               ),
             ),
             const SizedBox(height: 16),
@@ -98,7 +102,7 @@ class UsageHero extends StatelessWidget {
                     label: "Download",
                   ),
                 ),
-                Container(width: 1, height: 32, color: Colors.white12),
+                Container(width: 1, height: 32, color: AppColors.borderColor),
                 Expanded(
                   child: _buildStat(
                     context,

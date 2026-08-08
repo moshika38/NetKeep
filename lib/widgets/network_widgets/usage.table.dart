@@ -32,14 +32,11 @@ class UsageTable extends StatelessWidget {
           children: [
             _buildHeader(context),
             const SizedBox(height: 8),
-            Divider(height: 1, color: AppColors.white.withValues(alpha: 0.06)),
+            Divider(height: 1, color: AppColors.borderColor),
             for (var i = 0; i < rows.length; i++) ...[
               _buildRow(context, rows[i]),
               if (i < rows.length - 1)
-                Divider(
-                  height: 1,
-                  color: AppColors.white.withValues(alpha: 0.06),
-                ),
+                Divider(height: 1, color: AppColors.borderColor),
             ],
           ],
         ),
@@ -53,18 +50,18 @@ class UsageTable extends StatelessWidget {
         const Expanded(
           flex: 3,
           child: Text(
-            "Data",
+            "DATA",
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
               color: AppColors.textColor,
-              letterSpacing: 0.4,
+              letterSpacing: 1.2,
             ),
           ),
         ),
-        _headerCell(context, "Download"),
-        _headerCell(context, "Upload"),
-        _headerCell(context, "Total"),
+        _headerCell(context, "DOWN"),
+        _headerCell(context, "UP"),
+        _headerCell(context, "TOTAL"),
       ],
     );
   }
@@ -75,10 +72,10 @@ class UsageTable extends StatelessWidget {
         label,
         textAlign: TextAlign.right,
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
           color: AppColors.textColor,
-          letterSpacing: 0.4,
+          letterSpacing: 1.2,
         ),
       ),
     );

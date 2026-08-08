@@ -10,9 +10,9 @@ class LiveConsoleWidget extends StatelessWidget {
     return Container(
       height: MediaQuery.of(context).size.height * 0.28,
       decoration: BoxDecoration(
-        color: const Color(0xFF0F0F0F),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.white.withValues(alpha: 0.08)),
+        color: AppColors.cardAltColor,
+        borderRadius: BorderRadius.zero,
+        border: Border.all(color: AppColors.borderColor),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -50,18 +50,18 @@ class LiveConsoleWidget extends StatelessWidget {
       child: Row(
         children: [
           _trafficLight(AppColors.tertiaryColor),
-          const SizedBox(width: 6),
+          const SizedBox(width: 5),
           _trafficLight(AppColors.primaryColor),
-          const SizedBox(width: 6),
+          const SizedBox(width: 5),
           _trafficLight(AppColors.secondaryColor),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              "Live Console",
+              "LIVE CONSOLE",
               style: Theme.of(context).textTheme.bodySmall!.copyWith(
                 color: AppColors.white,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
               ),
             ),
           ),
@@ -69,7 +69,8 @@ class LiveConsoleWidget extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: AppColors.secondaryColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(100),
+              borderRadius: BorderRadius.zero,
+              border: Border.all(color: AppColors.secondaryColor.withValues(alpha: 0.4)),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
@@ -82,7 +83,7 @@ class LiveConsoleWidget extends StatelessWidget {
                     color: AppColors.secondaryColor,
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
+                    letterSpacing: 1.2,
                   ),
                 ),
               ],
@@ -97,7 +98,11 @@ class LiveConsoleWidget extends StatelessWidget {
     return Container(
       width: 10,
       height: 10,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.zero,
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
     );
   }
 
@@ -195,7 +200,7 @@ class _PulseDotState extends State<_PulseDot>
         height: 8,
         decoration: BoxDecoration(
           color: AppColors.secondaryColor,
-          shape: BoxShape.circle,
+          borderRadius: BorderRadius.zero,
           boxShadow: [
             BoxShadow(
               color: AppColors.secondaryColor.withValues(alpha: 0.7),
