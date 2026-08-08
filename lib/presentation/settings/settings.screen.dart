@@ -36,8 +36,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.zero,
+                  border: Border.all(
+                    color: AppColors.primaryColor.withValues(alpha: 0.35),
+                  ),
                 ),
                 child: const Icon(
                   Icons.speed,
@@ -149,8 +152,9 @@ class _TileIcon extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.zero,
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Icon(icon, color: color, size: 20),
     );

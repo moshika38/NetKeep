@@ -35,3 +35,4 @@ flutter:
 
   assets:
     - .env
+    - assets/app_icon.png
