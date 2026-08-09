@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:netkeep/presentation/home/home.screen.dart';
 import 'package:netkeep/presentation/network/network.screen.dart';
 import 'package:netkeep/presentation/settings/settings.screen.dart';
+import 'package:netkeep/presentation/vpn/vpn.screen.dart';
 
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
@@ -11,7 +12,12 @@ class ShellScreen extends StatefulWidget {
 }
 
 class _ShellScreenState extends State<ShellScreen> {
-  static const _screens = [HomeScreen(), NetworkScreen(), SettingsScreen()];
+  static const _screens = [
+    HomeScreen(),
+    NetworkScreen(),
+    VpnScreen(),
+    SettingsScreen(),
+  ];
 
   int _index = 0;
 
@@ -35,6 +41,11 @@ class _ShellScreenState extends State<ShellScreen> {
               label: 'HOME',
             ),
             NavigationDestination(icon: Icon(Icons.speed), label: 'NETWORK'),
+            NavigationDestination(
+              icon: Icon(Icons.vpn_lock_outlined),
+              selectedIcon: Icon(Icons.vpn_lock),
+              label: 'VPN',
+            ),
             NavigationDestination(
               icon: Icon(Icons.settings_outlined),
               selectedIcon: Icon(Icons.settings),

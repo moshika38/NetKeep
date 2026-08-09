@@ -26,6 +26,8 @@ dependencies:
   usage_stats: ^2.0.1
   package_info_plus: ^10.2.1
   flutter_foreground_task: ^10.0.0
+  wireguard_flutter_plus: ^1.0.7
+  cryptography: ^2.7.0
 
 dev_dependencies:
   flutter_test:

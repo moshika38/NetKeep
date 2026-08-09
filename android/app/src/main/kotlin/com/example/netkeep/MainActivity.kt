@@ -2,13 +2,17 @@ package com.example.netkeep
 
 import android.app.usage.NetworkStatsManager
 import android.content.Context
+import android.content.Intent
 import android.net.NetworkCapabilities
 import android.net.TrafficStats
+import android.net.VpnService
+import android.os.Build
 import com.pravera.flutter_foreground_task.FlutterForegroundTaskLifecycleListener
 import com.pravera.flutter_foreground_task.FlutterForegroundTaskPlugin
 import com.pravera.flutter_foreground_task.FlutterForegroundTaskStarter
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
@@ -16,6 +20,8 @@ class MainActivity: FlutterActivity() {
     private val networkStatsChannel = "netkeep/network_stats"
     private val dataUsageChannel = "com.netkeep.app/network_stats"
     private val statusBarIconChannel = "netkeep/status_bar_icon"
+    private val vpnChannel = "netkeep/vpn"
+    private val vpnEventsChannel = "netkeep/vpn/events"
 
     // Live TrafficStats counters (system-wide Rx/Tx bytes since boot).
     // Kept in the companion so it never captures a dead Activity.
@@ -127,6 +133,115 @@ class MainActivity: FlutterActivity() {
             .setMethodCallHandler(dataUsageHandler)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, statusBarIconChannel)
             .setMethodCallHandler(statusBarIconHandler)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, vpnChannel)
+            .setMethodCallHandler(vpnHandler)
+        // Live stage/statistics pushed by HutchVpnService while the WireGuard
+        // relay is up.
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, vpnEventsChannel)
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    HutchVpnService.eventSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    HutchVpnService.eventSink = null
+                }
+            })
+    }
+
+    private val vpnHandler = MethodChannel.MethodCallHandler { call, result ->
+        when (call.method) {
+            "startWireGuard" -> {
+                val wgQuick = call.argument<String>("wgQuick")
+                try {
+                    if (wgQuick.isNullOrBlank()) {
+                        result.error("VPN_ERROR", "Missing WireGuard config", null)
+                        return@MethodCallHandler
+                    }
+                    val pending = VpnService.prepare(this)
+                    if (pending != null) {
+                        // User must approve the VPN connection first; the relay
+                        // is launched from onActivityResult once approved.
+                        pendingWgQuick = wgQuick
+                        startActivityForResult(pending, WG_VPN_REQUEST_CODE)
+                        result.success(mapOf(
+                            "started" to false,
+                            "consentRequired" to true
+                        ))
+                    } else {
+                        launchWireGuardRelay(wgQuick)
+                        result.success(mapOf(
+                            "started" to HutchVpnService.isActive,
+                            "consentRequired" to false
+                        ))
+                    }
+                } catch (e: Exception) {
+                    result.error("VPN_ERROR", e.message, null)
+                }
+            }
+            "stopWireGuard" -> {
+                try {
+                    stopService(Intent(this, HutchVpnService::class.java))
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("VPN_ERROR", e.message, null)
+                }
+            }
+            "checkVpnPermission" -> {
+                result.success(try {
+                    VpnService.prepare(this) == null
+                } catch (e: Exception) {
+                    false
+                })
+            }
+            "getVpnStatus" -> {
+                result.success(HutchVpnService.isActive)
+            }
+            "getWgStatus" -> {
+                result.success(mapOf(
+                    "stage" to HutchVpnService.stage,
+                    "active" to HutchVpnService.isActive,
+                    "rxBytes" to HutchVpnService.rxBytes,
+                    "txBytes" to HutchVpnService.txBytes,
+                    "handshakeAgeMs" to HutchVpnService.handshakeAgeMs
+                ))
+            }
+            "getDeviceInfo" -> {
+                result.success(mapOf(
+                    "device" to Build.DEVICE,
+                    "model" to Build.MODEL,
+                    "android" to Build.VERSION.RELEASE,
+                    "sdk" to Build.VERSION.SDK_INT
+                ))
+            }
+            else -> result.notImplemented()
+        }
+    }
+
+    private fun launchWireGuardRelay(wgQuick: String) {
+        try {
+            val vpnIntent = Intent(this, HutchVpnService::class.java)
+                .setAction(HutchVpnService.ACTION_START)
+                .putExtra(HutchVpnService.EXTRA_WG_QUICK, wgQuick)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(vpnIntent)
+            } else {
+                startService(vpnIntent)
+            }
+            android.util.Log.d("MainActivity", "WireGuard relay started")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Error starting WireGuard relay: ${e.message}")
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == WG_VPN_REQUEST_CODE) {
+            if (resultCode == RESULT_OK) {
+                pendingWgQuick?.let { launchWireGuardRelay(it) }
+            }
+            pendingWgQuick = null
+        }
     }
 
     // Hardware Interface Level එකෙන් Total Device Data Usage එක ගන්නා Method එක
@@ -148,8 +263,14 @@ class MainActivity: FlutterActivity() {
     }
 
     companion object {
+        private const val WG_VPN_REQUEST_CODE = 4201
+
         @Volatile
         private var listenerRegistered = false
+
+        /** wg-quick profile awaiting VPN consent, launched on approval. */
+        @Volatile
+        private var pendingWgQuick: String? = null
 
         /**
          * Safely reads a Long-typed argument from a method call. Dart sends

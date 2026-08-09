@@ -7,10 +7,13 @@ class AppPreferences {
   static const String _selectedIspUrlKey = 'selected_isp_url';
   static const String showNetworkSpeedKey = 'show_network_speed';
   static const bool _showNetworkSpeedDefault = true;
+  static const String _vpnTunnelModeKey = 'vpn_tunnel_mode';
+  static const bool _vpnTunnelModeDefault = true;
 
   static bool _autoClearConsole = _autoClearConsoleDefault;
   static String _selectedIspUrl = defaultIspUrl;
   static bool _showNetworkSpeed = _showNetworkSpeedDefault;
+  static bool _vpnTunnelMode = _vpnTunnelModeDefault;
 
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -19,6 +22,8 @@ class AppPreferences {
     _selectedIspUrl = prefs.getString(_selectedIspUrlKey) ?? defaultIspUrl;
     _showNetworkSpeed =
         prefs.getBool(showNetworkSpeedKey) ?? _showNetworkSpeedDefault;
+    _vpnTunnelMode =
+        prefs.getBool(_vpnTunnelModeKey) ?? _vpnTunnelModeDefault;
   }
 
   static bool get autoClearConsole => _autoClearConsole;
@@ -43,5 +48,15 @@ class AppPreferences {
     _selectedIspUrl = url;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_selectedIspUrlKey, url);
+  }
+
+  /// When true, starting the keep-alive service also brings the WireGuard
+  /// tunnel (Cloudflare WARP) up so all pings route through the VPN.
+  static bool get vpnTunnelMode => _vpnTunnelMode;
+
+  static Future<void> setVpnTunnelMode(bool value) async {
+    _vpnTunnelMode = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_vpnTunnelModeKey, value);
   }
 }

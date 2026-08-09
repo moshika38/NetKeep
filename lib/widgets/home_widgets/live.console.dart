@@ -3,7 +3,15 @@ import 'package:netkeep/utils/theme.dart';
 
 class LiveConsoleWidget extends StatelessWidget {
   final List<(String, String)> _logs;
-  const LiveConsoleWidget({super.key, required this._logs});
+  final String vpnStage;
+  final int? vpnLatencyMs;
+
+  const LiveConsoleWidget({
+    super.key,
+    required this._logs,
+    this.vpnStage = 'disconnected',
+    this.vpnLatencyMs,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -68,30 +76,79 @@ class LiveConsoleWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: AppColors.secondaryColor.withValues(alpha: 0.12),
+              color: _statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.zero,
-              border: Border.all(color: AppColors.secondaryColor.withValues(alpha: 0.4)),
+              border: Border.all(color: _statusColor.withValues(alpha: 0.4)),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _PulseDot(),
-                SizedBox(width: 5),
-                Text(
-                  "LIVE",
-                  style: TextStyle(
-                    color: AppColors.secondaryColor,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: _statusColor,
+                    borderRadius: BorderRadius.zero,
+                    boxShadow: [
+                      BoxShadow(
+                        color: _statusColor.withValues(alpha: 0.8),
+                        blurRadius: 6,
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 5),
+                Text(
+                  _statusLabel,
+                  style: TextStyle(
+                    color: _statusColor,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                if (vpnLatencyMs != null) ...[
+                  const SizedBox(width: 6),
+                  Container(width: 1, height: 9, color: _statusColor.withValues(alpha: 0.4)),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${vpnLatencyMs}ms',
+                    style: TextStyle(
+                      color: _statusColor,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Color get _statusColor {
+    switch (vpnStage) {
+      case 'connected':
+        return AppColors.secondaryColor;
+      case 'connecting':
+        return AppColors.primaryColor;
+      default:
+        return AppColors.tertiaryColor;
+    }
+  }
+
+  String get _statusLabel {
+    switch (vpnStage) {
+      case 'connected':
+        return 'CONNECTED';
+      case 'connecting':
+        return 'CONNECTING';
+      default:
+        return 'DISCONNECTED';
+    }
   }
 
   Widget _trafficLight(Color color) {
@@ -161,54 +218,6 @@ class LiveConsoleWidget extends StatelessWidget {
         ),
         const _BlinkingCursor(),
       ],
-    );
-  }
-}
-
-class _PulseDot extends StatefulWidget {
-  const _PulseDot();
-
-  @override
-  State<_PulseDot> createState() => _PulseDotState();
-}
-
-class _PulseDotState extends State<_PulseDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: Tween(begin: 0.2, end: 1.0).animate(_controller),
-      child: Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(
-          color: AppColors.secondaryColor,
-          borderRadius: BorderRadius.zero,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.secondaryColor.withValues(alpha: 0.7),
-              blurRadius: 6,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

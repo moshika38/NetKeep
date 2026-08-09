@@ -4,6 +4,32 @@ import 'package:http/http.dart' as http;
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:intl/intl.dart';
 
+/// Measures round-trip latency through the active WireGuard tunnel by hitting
+/// Cloudflare's `generate_204` endpoint. When the tunnel is up with
+/// AllowedIPs 0.0.0.0/0 the request egresses via WARP, so the RTT reflects the
+/// tunnel path (and confirms a live, 403-free route). Returns null on failure.
+Future<int?> measureTunnelLatency() async {
+  final httpClient = http.Client();
+  try {
+    final stopwatch = Stopwatch()..start();
+    final response = await httpClient
+        .head(Uri.parse('https://cp.cloudflare.com/generate_204'))
+        .timeout(const Duration(seconds: 4));
+    stopwatch.stop();
+    // Cloudflare's generate_204 answers with 204 when the egress path is
+    // healthy. A 403/429 means the route is still blocked even through the
+    // tunnel, so report it as a failed probe.
+    if (response.statusCode == 403 || response.statusCode == 429) {
+      return null;
+    }
+    return stopwatch.elapsedMilliseconds;
+  } catch (_) {
+    return null;
+  } finally {
+    httpClient.close();
+  }
+}
+
 class PingService {
   Timer? _pingTimer;
   late http.Client _httpClient;

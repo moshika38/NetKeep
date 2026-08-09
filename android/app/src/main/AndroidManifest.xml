@@ -3,10 +3,15 @@
     
      
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.BIND_VPN_SERVICE" />
 
     <!-- Foreground Service Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
@@ -49,6 +54,15 @@
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+
+        <!-- WireGuard relay: keeps the process foreground while the Go backend
+             tunnel (GoBackend$VpnService, declared by the tunnel library) runs.
+             The actual VPN TUN service is com.wireguard.android.backend.
+             GoBackend$VpnService which is merged in from the library manifest. -->
+        <service
+            android:name=".HutchVpnService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
         <!-- Notification icon used by the keep-alive foreground service.
              This is a fully transparent placeholder: the visible status-bar

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:netkeep/services/app.info.service.dart';
 import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/services/keep_alive_service.dart';
+import 'package:netkeep/services/vpn_service.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
 import 'package:netkeep/widgets/section.header.dart';
@@ -16,11 +17,22 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _showNetworkSpeed = AppPreferences.showNetworkSpeed;
   bool _autoClearConsole = AppPreferences.autoClearConsole;
+  bool _vpnTunnelMode = AppPreferences.vpnTunnelMode;
 
   Future<void> _onSpeedToggleChanged(bool value) async {
     setState(() => _showNetworkSpeed = value);
     await AppPreferences.setShowNetworkSpeed(value);
     KeepAliveManager.updateShowNetworkSpeed(value);
+  }
+
+  Future<void> _onVpnTunnelModeChanged(bool value) async {
+    setState(() => _vpnTunnelMode = value);
+    await AppPreferences.setVpnTunnelMode(value);
+    if (!value) {
+      // Leaving tunnel mode: tear the relay down so the device falls back to
+      // the direct ISP path.
+      VpnService.stop();
+    }
   }
 
   @override
@@ -99,6 +111,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _autoClearConsole
                     ? 'Clears logs when keep-alive stops'
                     : 'Keeps logs after keep-alive stops',
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          const SectionHeader(
+            title: 'VPN Tunnel',
+            subtitle: 'WireGuard mode behavior',
+          ),
+          const SizedBox(height: 12),
+          Card(
+            margin: EdgeInsets.zero,
+            child: SwitchListTile(
+              value: _vpnTunnelMode,
+              onChanged: _onVpnTunnelModeChanged,
+              secondary: const _TileIcon(
+                icon: Icons.vpn_lock,
+                color: AppColors.secondaryColor,
+              ),
+              title: const Text(
+                'WireGuard VPN Tunnel Mode',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                _vpnTunnelMode
+                    ? 'Routes all keep-alive traffic through Cloudflare WARP'
+                    : 'Pings go over the direct ISP connection',
               ),
             ),
           ),
