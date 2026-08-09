@@ -47,7 +47,35 @@ class MainActivity: FlutterActivity() {
             "setDownloadSpeed" -> {
                 try {
                     val bytesPerSecond = argumentLong(call, "bytesPerSecond") ?: 0L
-                    DynamicSpeedIcon.updateSmallIcon(applicationContext, bytesPerSecond)
+                    val title = call.argument<String>("title")
+                    val text = call.argument<String>("text")
+                    DynamicSpeedIcon.updateSmallIcon(
+                        applicationContext, bytesPerSecond, title, text)
+                } catch (_: Throwable) {
+                    // Never let an icon update crash the main thread or fail
+                    // the method channel.
+                }
+                result.success(null)
+            }
+            "setNotificationContent" -> {
+                try {
+                    val title = call.argument<String>("title") ?: "NetKeep"
+                    val text = call.argument<String>("text") ?: ""
+                    DynamicSpeedIcon.setNotificationContent(applicationContext, title, text)
+                } catch (_: Throwable) {
+                    // Never let an icon update crash the main thread or fail
+                    // the method channel.
+                }
+                result.success(null)
+            }
+            "setSpeedIconEnabled" -> {
+                try {
+                    val enabled = when (val value = call.argument<Any>("enabled")) {
+                        is Boolean -> value
+                        is Number -> value.toInt() != 0
+                        else -> false
+                    }
+                    DynamicSpeedIcon.setSpeedIconEnabled(applicationContext, enabled)
                 } catch (_: Throwable) {
                     // Never let an icon update crash the main thread or fail
                     // the method channel.

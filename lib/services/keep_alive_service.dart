@@ -28,6 +28,11 @@ class KeepAliveTaskHandler extends TaskHandler {
 
   bool _showNetworkSpeed = true;
 
+  String? _lastPushedTitle;
+  String? _lastPushedText;
+
+  bool _speedIconActive = true;
+
   int? _previousRxBytes;
   int? _previousTxBytes;
 
@@ -35,6 +40,13 @@ class KeepAliveTaskHandler extends TaskHandler {
   int _uploadBytesPerSec = 0;
   int? _lastPingMs;
   bool _pingInFlight = false;
+
+  // Tracks when the last slow-cadence work ran while the speed display was
+  // disabled. The plugin always ticks at the fast 1000ms interval (the plugin's
+  // updateService() is never called to change it, because doing so fires a
+  // competing notify()), so this self-throttles the disabled path to the slow
+  // cadence to conserve battery.
+  DateTime? _lastDisabledTickAt;
 
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
@@ -59,14 +71,14 @@ class KeepAliveTaskHandler extends TaskHandler {
 
   @override
   Future<void> onRepeatEvent(DateTime timestamp) async {
-    // Runs every 1000ms (speed enabled) or 5000ms (speed disabled).
-    // Reads the device-wide byte counters through the native TrafficStats
-    // MethodChannel, computes the speed as the delta between consecutive
-    // ticks, and updates the notification.
+    // Runs every 1000ms. Reads the device-wide byte counters through the native
+    // TrafficStats MethodChannel, computes the speed as the delta between
+    // consecutive ticks, and updates the notification.
     //
     // When "Show Network Speed" is disabled the TrafficStats fetching and
     // speed calculation are skipped entirely to conserve battery and CPU.
     if (_showNetworkSpeed) {
+      _lastDisabledTickAt = null;
       final NetworkTraffic? current = await _fetchNetworkTraffic();
 
       if (current != null) {
@@ -87,6 +99,16 @@ class KeepAliveTaskHandler extends TaskHandler {
           _previousTxBytes = current.txBytes;
         }
       }
+    } else {
+      // Speed display disabled: only run the notification/ping work every
+      // `_speedDisabledIntervalMs`, never on every fast tick.
+      final DateTime now = DateTime.now();
+      if (_lastDisabledTickAt != null &&
+          now.difference(_lastDisabledTickAt!) <
+              const Duration(milliseconds: _speedDisabledIntervalMs)) {
+        return;
+      }
+      _lastDisabledTickAt = now;
     }
 
     _pushNotification();
@@ -114,44 +136,76 @@ class KeepAliveTaskHandler extends TaskHandler {
     final String text = 'ISP: $_ispName | '
         'Ping: ${_lastPingMs == null ? 'Failed' : '${_lastPingMs}ms'}';
 
-    await FlutterForegroundTask.updateService(
-      notificationTitle: title,
-      notificationText: text,
-    );
-
-    // Update the dynamic status-bar small icon with the live download speed.
-    // The plugin rebuilds the notification with the static icon above, so this
-    // runs afterwards to make the speed bitmap win until the next tick. Raw
-    // bytes are sent so the native side can format and render the bitmap.
-    if (_showNetworkSpeed) {
+    // Route ALL live updates through the single native unified builder
+    // (DynamicSpeedIcon). The plugin's own FlutterForegroundTask.updateService
+    // is deliberately NOT used for content here: every call would make the
+    // plugin fire a second notify(1000, ...) that races the unified builder and
+    // blinks the status-bar icon. The unified builder uses the SAME config as
+    // the plugin's initial foreground notification (PUBLIC visibility, no
+    // group keys), so exactly ONE builder drives notification id 1000.
+    //
+    // The static app icon vs. speed-bitmap swap is also handled natively via
+    // setSpeedIconEnabled, and only on actual state transitions so no
+    // competing builder is ever involved.
+    final bool speedTransition = _speedIconActive != _showNetworkSpeed;
+    if (speedTransition) {
+      _speedIconActive = _showNetworkSpeed;
       try {
         await _statusBarIconChannel.invokeMethod<void>(
-          'setDownloadSpeed',
-          {'bytesPerSecond': _downloadBytesPerSec},
+          'setSpeedIconEnabled',
+          {'enabled': _showNetworkSpeed},
         );
       } catch (_) {
         // Native channel unavailable (older build) - keep static icon.
       }
     }
+
+    if (_showNetworkSpeed) {
+      // One native call carries both the live speed AND the visible content so
+      // exactly ONE notify() (via the unified builder) fires per tick.
+      try {
+        await _statusBarIconChannel.invokeMethod<void>(
+          'setDownloadSpeed',
+          {
+            'bytesPerSecond': _downloadBytesPerSec,
+            'title': title,
+            'text': text,
+          },
+        );
+      } catch (_) {
+        // Native channel unavailable (older build) - keep static icon.
+      }
+    } else {
+      // Speed display disabled: only the ping/ISP text changes, so push the
+      // content through the unified builder and keep the static app icon.
+      final bool contentChanged =
+          title != _lastPushedTitle || text != _lastPushedText;
+      if (contentChanged) {
+        _lastPushedTitle = title;
+        _lastPushedText = text;
+        try {
+          await _statusBarIconChannel.invokeMethod<void>(
+            'setNotificationContent',
+            {'title': title, 'text': text},
+          );
+        } catch (_) {
+          // Native channel unavailable (older build) - keep static icon.
+        }
+      }
+    }
   }
 
-  // Applies the repeat interval that matches the current speed setting and
+  // Applies the repeat cadence that matches the current speed setting and
   // resets the baseline so re-enabling speed never spikes.
+  //
+  // The plugin's own FlutterForegroundTask.updateService() is deliberately NOT
+  // used here (nor in initService) to change the interval: every such call
+  // would make the plugin fire a second notify(1000, ...) that races the
+  // unified builder and blinks the status-bar icon. Instead the plugin stays
+  // on the fast 1000ms tick and onRepeatEvent self-throttles to the slow
+  // cadence when speed display is disabled.
   void _applyInterval() {
-    final int intervalMs =
-        _showNetworkSpeed ? _speedEnabledIntervalMs : _speedDisabledIntervalMs;
-
-    FlutterForegroundTask.updateService(
-      foregroundTaskOptions: ForegroundTaskOptions(
-        eventAction: ForegroundTaskEventAction.repeat(intervalMs),
-        autoRunOnBoot: false,
-        autoRunOnMyPackageReplaced: false,
-        allowWakeLock: true,
-        allowWifiLock: true,
-        allowAutoRestart: true,
-      ),
-    );
-
+    _lastDisabledTickAt = null;
     if (_showNetworkSpeed) {
       _previousRxBytes = null;
       _previousTxBytes = null;
@@ -282,7 +336,10 @@ class KeepAliveManager {
             'Monitors live network speed and connection latency.',
         channelImportance: NotificationChannelImportance.LOW,
         priority: NotificationPriority.LOW,
-        showWhen: true,
+        // Match the unified native builder's locked-down config: no timestamp,
+        // alert only once, so the plugin's initial notification and every live
+        // update use the same visibility/flag set.
+        showWhen: false,
         onlyAlertOnce: true,
       ),
       iosNotificationOptions: const IOSNotificationOptions(
@@ -290,7 +347,11 @@ class KeepAliveManager {
         playSound: false,
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
-        eventAction: ForegroundTaskEventAction.repeat(_taskIntervalMs()),
+        // Always tick at the fast cadence. The plugin's updateService() is
+        // never called to change the interval because it fires a competing
+        // notify(); when the speed display is disabled, onRepeatEvent
+        // self-throttles to the slow cadence instead.
+        eventAction: ForegroundTaskEventAction.repeat(_speedEnabledIntervalMs),
         autoRunOnBoot: false,
         allowWakeLock: true,
         allowWifiLock: true,
@@ -298,10 +359,6 @@ class KeepAliveManager {
       ),
     );
   }
-
-  static int _taskIntervalMs() => AppPreferences.showNetworkSpeed
-      ? _speedEnabledIntervalMs
-      : _speedDisabledIntervalMs;
 
   static Future<bool> isServiceRunning() {
     return FlutterForegroundTask.isRunningService;

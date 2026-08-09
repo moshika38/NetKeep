@@ -1,6 +1,5 @@
 package com.example.netkeep
 
-import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -17,14 +16,19 @@ import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
 /**
- * Renders the live download speed as a small text bitmap that is used as the
- * dynamic status-bar small icon of the keep-alive foreground notification.
+ * Renders the live download speed as a compact two-line text bitmap that is
+ * used as the dynamic status-bar small icon of the keep-alive foreground
+ * notification: the numeric value on top and the lowercase unit ("kb"/"mb")
+ * underneath, with no separator line so all vertical space goes to the glyphs.
  *
  * Android status-bar icons are alpha-masked: every non-transparent pixel is
  * tinted by the OS, so the icon is produced as opaque white glyphs on a fully
- * transparent 48x48 px canvas. Font sizing is pure arithmetic based on the
- * label length (no text-bounds measurement, no scaling loops) so generating an
- * icon can never block or ANR the caller.
+ * transparent fixed 48x48 px canvas. 48x48 px matches Android's 24dp
+ * status-bar slot at 2x density, so the OS shows it at native size instead of
+ * auto-downscaling larger bitmaps (which made the text render tiny). Font
+ * sizes and positions are fixed, so generating an icon is pure arithmetic with
+ * no text-bounds measurement or scaling loops and can never block or ANR the
+ * caller.
  */
 object DynamicSpeedIcon {
 
@@ -40,55 +44,85 @@ object DynamicSpeedIcon {
     private const val DEFAULT_SERVICE_ID = 1000
     private const val DEFAULT_CHANNEL_ID = "foreground_service"
 
-    // Status-bar small icons must be alpha-mask bitmaps. 48x48 px at ARGB_8888
-    // matches the platform's canonical status-bar icon dimensions and keeps the
-    // glyphs crisp without any scaling or density gymnastics.
+    // Status-bar small icons must be alpha-mask bitmaps. A fixed 48x48 px
+    // ARGB_8888 canvas matches Android's 24dp status-bar slot at 2x density,
+    // so the OS shows it at native size instead of auto-downscaling larger
+    // bitmaps, which is what made the glyphs render tiny.
     private const val BITMAP_SIZE_PX = 48
     private const val TEXT_CENTER_X = 24f
 
-    // Standard readable font sizes chosen for the 48x48 canvas by label
-    // length. 2-3 character labels ("0K", "1.2M") use 22f, 4 character labels
-    // ("10.5M") drop to 18f so every glyph stays fully on-canvas.
-    private fun textSizeForLength(length: Int): Float = when {
-        length <= 3 -> 22f
-        else -> 18f
-    }
+    // Fallback white-dot icon uses the same 48x48 status-bar slot.
+    private const val FALLBACK_SIZE_PX = 48
 
     /**
-     * Compacts a bytes-per-second value into a 3-4 character label for the
-     * status-bar icon: whole KB below 1 MB/s ("0K", "100K", "850K"), MB with
-     * one decimal below 10 MB/s ("1.2M", "5.0M") and whole MB at 10 MB/s and
-     * above ("15M", "20M").
+     * Compacts a bytes-per-second value into a lowercase short label for the
+     * status-bar icon: whole KB below 1 MB/s ("0kb", "100kb", "850kb"), MB
+     * with one decimal below 10 MB/s ("1.2mb", "5.5mb") and whole MB at
+     * 10 MB/s and above ("15mb", "20mb"). Values that round across a unit
+     * boundary (e.g. 1023.8 KB/s) roll over to the next unit instead of
+     * producing an over-wide label like "1024kb" that would clip.
      */
     fun formatShortSpeed(bytesPerSecond: Long): String {
-        if (bytesPerSecond <= 0L) return "0K"
-
-        val kb = bytesPerSecond / 1024.0
-        if (kb < 1024.0) return "${kb.roundToInt()}K"
-
-        val mb = kb / 1024.0
-        if (mb < 10.0) return "${oneDecimal(mb)}M"
-        if (mb < 1024.0) return "${mb.roundToInt()}M"
-
-        val gb = mb / 1024.0
-        return if (gb < 10.0) "${oneDecimal(gb)}G" else "${gb.roundToInt()}G"
+        val (value, unit) = speedParts(bytesPerSecond)
+        return "$value$unit"
     }
 
-    private fun oneDecimal(value: Double): String =
-        "${(value * 10.0).roundToInt() / 10.0}"
+    /**
+     * Splits a bytes-per-second value into the numeric value and the lowercase
+     * unit so the two-line status-bar icon can draw them as separate rows.
+     * Uses the same compaction/roll-over rules as [formatShortSpeed]: whole KB
+     * below 1 MB/s ("0", "100", "850"), one decimal below 10 MB/s ("1.2",
+     * "5.5") and whole MB at 10 MB/s and above ("15", "20"). Values that round
+     * across a unit boundary (e.g. 1023.8 KB/s) roll over to the next unit
+     * instead of producing an over-wide value like "1024" that would clip.
+     */
+    private fun speedParts(bytesPerSecond: Long): Pair<String, String> {
+        if (bytesPerSecond <= 0L) return "0" to "kb"
+
+        val kb = bytesPerSecond / 1024.0
+        val kbRounded = kb.roundToInt()
+        if (kbRounded < 1024) return "${kbRounded}" to "kb"
+
+        val mb = kb / 1024.0
+        if (mb < 10.0) return oneDecimalOrWhole(mb) to "mb"
+        val mbRounded = mb.roundToInt()
+        if (mbRounded < 1024) return "${mbRounded}" to "mb"
+
+        val gb = mb / 1024.0
+        if (gb < 10.0) return oneDecimalOrWhole(gb) to "gb"
+        return "${gb.roundToInt()}" to "gb"
+    }
+
+    // Renders a sub-10 value with one decimal place, rolling over to a whole
+    // number when rounding would reach 10 (e.g. "9.9", "10").
+    private fun oneDecimalOrWhole(value: Double): String {
+        val tenths = (value * 10.0).roundToInt()
+        return if (tenths < 100) "${tenths / 10.0}" else "${tenths / 10}"
+    }
 
     /**
-     * Generates a 48x48 px bitmap with the given speed text drawn in bold white
-     * glyphs on a fully transparent background. White (alpha 255) on transparent
-     * is exactly what Android's status-bar alpha masking expects, so the OS tints
-     * the glyphs and never shows a black box. The whole generation is wrapped in
-     * a try-catch so a draw failure falls back gracefully instead of crashing or
-     * freezing the calling thread.
+     * Generates a fixed 48x48 px bitmap with the given speed text drawn as two
+     * stacked rows: the bold numeric value near the top and the lowercase unit
+     * beneath it, with no separator line so every pixel of vertical space goes
+     * to the glyphs. White (alpha 255) on transparent is exactly what Android's
+     * status-bar alpha masking expects, so the OS tints the glyphs and never
+     * shows a black box. Both rows use the condensed Sans-Serif-Condensed Bold
+     * face so wide values and units stay crisp and fully on-canvas at the
+     * native status-bar size. The whole generation is wrapped in a try-catch so
+     * a draw failure falls back gracefully instead of crashing or freezing the
+     * calling thread.
      */
-    fun createSpeedIcon(speedText: String): IconCompat {
+    fun createSpeedIcon(context: Context, speedText: String): IconCompat {
         return try {
-            val label = if (speedText.isBlank()) "0K" else speedText
+            val label = if (speedText.isBlank()) "0kb" else speedText
+            // Speed labels always end in a two-letter unit ("kb"/"mb"/"gb"),
+            // so the value and unit rows can be split by position.
+            val value = label.dropLast(2)
+            val unit = label.takeLast(2)
 
+            // Exact 48x48 px canvas: this matches Android's fixed 24dp
+            // status-bar slot at 2x density, so the OS never auto-downscales
+            // the bitmap (which is what made larger canvases render tiny).
             val bitmap = Bitmap.createBitmap(
                 BITMAP_SIZE_PX, BITMAP_SIZE_PX, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
@@ -99,16 +133,21 @@ object DynamicSpeedIcon {
             val paint = Paint().apply {
                 color = Color.WHITE
                 isAntiAlias = true
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                isFakeBoldText = false
                 textAlign = Paint.Align.CENTER
-                textSize = textSizeForLength(label.length)
             }
 
-            // Center vertically using static font metrics (single arithmetic
-            // step, no bounds re-measurement) and horizontally with CENTER
-            // alignment at the canvas midpoint.
-            val yPos = (BITMAP_SIZE_PX / 2f) - ((paint.descent() + paint.ascent()) / 2f)
-            canvas.drawText(label, TEXT_CENTER_X, yPos, paint)
+            // Numeric value row: largest text, drawn on the top line at the
+            // canvas midline x (24f) with baseline y = 23f. The condensed bold
+            // face keeps wide values ("450", "10.5") inside the 48px width.
+            paint.textSize = 31f
+            paint.typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+            canvas.drawText(value, TEXT_CENTER_X, 23f, paint)
+
+            // Unit row: smaller text, drawn on the bottom line at the canvas
+            // midline x (24f) with baseline y = 45f.
+            paint.textSize = 20f
+            canvas.drawText(unit, TEXT_CENTER_X, 45f, paint)
 
             IconCompat.createWithBitmap(bitmap)
         } catch (_: Throwable) {
@@ -121,7 +160,7 @@ object DynamicSpeedIcon {
 
     private fun fallbackIcon(): IconCompat {
         val bitmap = Bitmap.createBitmap(
-            BITMAP_SIZE_PX, BITMAP_SIZE_PX, Bitmap.Config.ARGB_8888)
+            FALLBACK_SIZE_PX, FALLBACK_SIZE_PX, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
         val paint = Paint().apply {
@@ -129,9 +168,40 @@ object DynamicSpeedIcon {
             isAntiAlias = true
             style = Paint.Style.FILL
         }
-        canvas.drawCircle(BITMAP_SIZE_PX / 2f, BITMAP_SIZE_PX / 2f, 8f, paint)
+        canvas.drawCircle(FALLBACK_SIZE_PX / 2f, FALLBACK_SIZE_PX / 2f, 8f, paint)
         return IconCompat.createWithBitmap(bitmap)
     }
+
+    // Cached state for the status-bar small icon. Both fields are only read
+    // and written from the single icon-update thread below, so they never need
+    // locking. `lastSpeedText` is the most recently rendered speed label: when
+    // a new tick formats the same label (e.g. it stays "0kb") the bitmap is
+    // NOT regenerated and the notification is NOT re-notified, which stops the
+    // status-bar icon from flickering/re-rendering on every tick.
+    private var lastSpeedText = ""
+    private var lastContentTitle: String? = null
+    private var lastContentText: String? = null
+    private var speedIconActive = true
+
+    // The exact small icon currently shown in the status bar. Kept so a
+    // content-only refresh (e.g. a ping text change with an unchanged speed
+    // label) can re-notify with the same bitmap instead of regenerating it.
+    private var currentSmallIcon: IconCompat? = null
+
+    // Single persistent NotificationCompat.Builder reused across every status
+    // bar update so the notification is never torn down and recreated (which
+    // is what made the icon blink). It is the ONLY builder that ever calls
+    // notify() for the service id: the plugin's own updateService() path is
+    // deliberately never used for live updates, so no competing
+    // notification (different visibility/group config) can race it. Its static
+    // config (PUBLIC visibility, no group keys) matches the plugin's initial
+    // foreground notification exactly, so even at service start there is no
+    // conflicting builder in play. Only rebuilt when the underlying channel id
+    // changes. All fields here are only touched from the single icon-update
+    // thread below, so they never need locking.
+    private var persistentBuilder: NotificationCompat.Builder? = null
+    private var persistentBuilderChannelId = ""
+    private var persistentServiceId = DEFAULT_SERVICE_ID
 
     // Single background thread so notification refreshes never run on the main
     // thread and never block foreground-service init or Flutter engine startup.
@@ -142,26 +212,125 @@ object DynamicSpeedIcon {
     /**
      * Rebuilds the running foreground notification with a fresh speed bitmap
      * as its small icon so the status bar reflects the live download speed.
-     * Reads the service id, channel id and body text from the
-     * flutter_foreground_task preferences so it stays in sync with the
-     * notification the plugin manages. Returns immediately: the actual build
-     * and notify run on a dedicated background thread.
+     * Optional title/text carry the visible notification content (speed line +
+     * ISP/ping) from the Dart task; when present they are persisted first so
+     * the unified builder below is the ONLY code path that ever calls notify()
+     * for the service id (the plugin's updateService() is never used for live
+     * updates, which would fire a competing notify() with a different
+     * visibility/group config). Returns immediately: the actual build and
+     * notify run on a dedicated background thread.
      */
-    fun updateSmallIcon(context: Context, bytesPerSecond: Long) {
+    fun updateSmallIcon(context: Context, bytesPerSecond: Long, title: String? = null, text: String? = null) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
 
         val appContext = context.applicationContext
         val label = formatShortSpeed(bytesPerSecond)
         iconUpdateExecutor.execute {
             try {
-                updateNotification(appContext, label)
+                if (!speedIconActive) return@execute
+                // Persist any new visible content so the unified builder (and
+                // any service restart) reads the latest title/text.
+                val contentProvided = title != null && text != null
+                if (contentProvided) {
+                    persistNotificationContent(appContext, title!!, text!!)
+                }
+                val contentChanged = contentProvided &&
+                    (title != lastContentTitle || text != lastContentText)
+                // Skip regenerating the bitmap and re-notifying when BOTH the
+                // speed label and the visible content are unchanged, so the
+                // status-bar icon is not re-rendered every tick (flickering).
+                if (!contentChanged && label == lastSpeedText) return@execute
+                if (contentProvided) {
+                    lastContentTitle = title
+                    lastContentText = text
+                }
+                lastSpeedText = label
+                val icon = createSpeedIcon(appContext, label)
+                currentSmallIcon = icon
+                buildAndNotify(appContext, icon)
             } catch (_: Throwable) {
                 // Never let a status-bar refresh crash or block any thread.
             }
         }
     }
 
-    private fun updateNotification(context: Context, label: String) {
+    /**
+     * Updates only the visible notification content (title/text) through the
+     * unified builder, keeping the current small icon intact. Used when the
+     * speed display is disabled so the plugin's updateService() -- which would
+     * fire a competing notify() with default settings -- is never called.
+     */
+    fun setNotificationContent(context: Context, title: String, text: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+
+        val appContext = context.applicationContext
+        iconUpdateExecutor.execute {
+            try {
+                if (title == lastContentTitle && text == lastContentText) return@execute
+                lastContentTitle = title
+                lastContentText = text
+                persistNotificationContent(appContext, title, text)
+                val icon = currentSmallIcon
+                    ?: IconCompat.createWithResource(appContext, R.mipmap.ic_launcher)
+                buildAndNotify(appContext, icon)
+            } catch (_: Throwable) {
+                // Never let a status-bar refresh crash or block any thread.
+            }
+        }
+    }
+
+    // Writes the notification content back to the same prefs file the plugin
+    // reads, so a service restart or the plugin's own notification still sees
+    // the latest title/text.
+    private fun persistNotificationContent(context: Context, title: String, text: String) {
+        context.getSharedPreferences(NOTIFICATION_OPTIONS_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(NOTIFICATION_CONTENT_TITLE, title)
+            .putString(NOTIFICATION_CONTENT_TEXT, text)
+            .apply()
+    }
+
+    /**
+     * Switches the status-bar small icon between the live speed bitmap and the
+     * static app icon. Called when the "Show Network Speed" setting changes:
+     * disabling reverts the icon to the launcher icon so no blank/black
+     * transparent placeholder is ever left in the status bar, and enabling
+     * forces the next tick to re-render the speed bitmap (and shows "0kb"
+     * immediately when coming back from the static app icon).
+     */
+    fun setSpeedIconEnabled(context: Context, enabled: Boolean) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+
+        val appContext = context.applicationContext
+        iconUpdateExecutor.execute {
+            try {
+                if (enabled) {
+                    val wasInactive = !speedIconActive
+                    speedIconActive = true
+                    // Force the next updateSmallIcon to render even if the same
+                    // text was rendered before the icon was swapped away.
+                    lastSpeedText = ""
+                    if (wasInactive) {
+                        // Returning from the static app icon: show a speed
+                        // bitmap right away instead of waiting for the next tick.
+                        val icon = createSpeedIcon(appContext, formatShortSpeed(0L))
+                        currentSmallIcon = icon
+                        buildAndNotify(appContext, icon)
+                    }
+                } else if (speedIconActive) {
+                    speedIconActive = false
+                    lastSpeedText = ""
+                    val icon = IconCompat.createWithResource(appContext, R.mipmap.ic_launcher)
+                    currentSmallIcon = icon
+                    buildAndNotify(appContext, icon)
+                }
+            } catch (_: Throwable) {
+                // Never let a status-bar refresh crash or block any thread.
+            }
+        }
+    }
+
+    private fun buildAndNotify(context: Context, smallIcon: IconCompat) {
         val prefs = context.getSharedPreferences(
             NOTIFICATION_OPTIONS_PREFS, Context.MODE_PRIVATE)
         val serviceId = prefs.getInt(
@@ -171,42 +340,68 @@ object DynamicSpeedIcon {
         val title = prefs.getString(NOTIFICATION_CONTENT_TITLE, null) ?: "NetKeep"
         val text = prefs.getString(NOTIFICATION_CONTENT_TEXT, null) ?: ""
 
-        // Always render the dynamic bitmap - even at 0 B/s - so the status bar
-        // icon never blinks between the static app icon and the speed text.
-        val icon = createSpeedIcon(label)
-        val contentIntent = buildLaunchIntent(context)
-
-        val notification: Notification
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val builder = Notification.Builder(context, channelId)
-                .setSmallIcon(icon.toIcon())
-                .setContentTitle(title)
-                .setContentText(text)
-                .setContentIntent(contentIntent)
-                .setOngoing(true)
-                .setOnlyAlertOnce(true)
-                .setShowWhen(true)
-            builder.style = Notification.BigTextStyle()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                builder.setForegroundServiceBehavior(
-                    Notification.FOREGROUND_SERVICE_IMMEDIATE)
-            }
-            notification = builder.build()
-        } else {
-            notification = NotificationCompat.Builder(context, channelId)
-                .setSmallIcon(icon)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setContentIntent(contentIntent)
-                .setOngoing(true)
-                .setOnlyAlertOnce(true)
-                .setShowWhen(true)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-                .build()
+        // Reuse the single persistent builder unless the underlying channel id
+        // changed, so speed ticks never allocate a new builder or re-apply the
+        // static visibility/category/priority flags. This is the ONLY notify()
+        // path for the service id -- the plugin's updateService() is never used
+        // for live updates, so no competing builder config can race it.
+        if (persistentBuilder == null ||
+            channelId != persistentBuilderChannelId
+        ) {
+            persistentBuilder = buildPersistentBuilder(context, channelId)
+            persistentBuilderChannelId = channelId
+            persistentServiceId = serviceId
         }
 
+        // Per-tick updates only swap the content and small icon on the existing
+        // builder and re-notify with the same service id so Android updates the
+        // notification IN-PLACE instead of tearing it down and recreating it,
+        // which is what caused the icon to blink/disappear. startForeground()
+        // is never called here: the foreground-service framework already did it
+        // once when the service started, and re-calling it on every tick
+        // triggers SystemUI's animation/blink of the icon slot.
+        val builder = persistentBuilder ?: return
+        builder.setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(smallIcon)
         val nm = context.getSystemService(NotificationManager::class.java)
-        nm.notify(serviceId, notification)
+        nm.notify(serviceId, builder.build())
+    }
+
+    // Creates the persistent notification builder once. All static metadata is
+    // locked down here -- PUBLIC visibility, service category, ongoing,
+    // only-alert-once, no timestamp, fixed sort key, LOW priority -- and NEVER
+    // switches between PRIVATE/PUBLIC or group/no-group across updates. Group
+    // keys are deliberately NOT set so the notification carries exactly the
+    // same config (PUBLIC visibility, no group) as the plugin's initial
+    // foreground notification, leaving no conflicting settings to race.
+    // Per-tick updates only touch title/text/small icon on this same builder
+    // instance.
+    private fun buildPersistentBuilder(
+        context: Context,
+        channelId: String
+    ): NotificationCompat.Builder {
+        return NotificationCompat.Builder(context, channelId)
+            .setContentIntent(buildLaunchIntent(context))
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            // Keep the icon pinned in place: PUBLIC visibility, no timestamp
+            // re-sorting, a fixed sort key, and a low-priority ongoing service
+            // category so Android never re-orders the status bar entry and
+            // SystemUI never animates/blinks the icon slot on update. No group
+            // key is set so this config exactly matches the plugin's initial
+            // foreground notification (PUBLIC visibility, no group).
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setShowWhen(false)
+            .setSortKey("0_netkeep")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setForegroundServiceBehavior(
+                        NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+                }
+            }
     }
 
     private fun buildLaunchIntent(context: Context): PendingIntent? {
