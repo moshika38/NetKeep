@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Fully transparent: the keep-alive notification's small icon is always
+         the dynamic speed bitmap supplied by DynamicSpeedIcon. This static
+         placeholder is intentionally invisible so the blue app icon never
+         appears in the status bar, even during the initial startForeground. -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,0h24v24h-24z" />
+</vector>

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:netkeep/services/app.info.service.dart';
 import 'package:netkeep/services/app.preferences.dart';
+import 'package:netkeep/services/keep_alive_service.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
 import 'package:netkeep/widgets/section.header.dart';
@@ -13,8 +14,14 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _speedNotifications = true;
+  bool _showNetworkSpeed = AppPreferences.showNetworkSpeed;
   bool _autoClearConsole = AppPreferences.autoClearConsole;
+
+  Future<void> _onSpeedToggleChanged(bool value) async {
+    setState(() => _showNetworkSpeed = value);
+    await AppPreferences.setShowNetworkSpeed(value);
+    KeepAliveManager.updateShowNetworkSpeed(value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,8 +38,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Card(
             margin: EdgeInsets.zero,
             child: SwitchListTile(
-              value: _speedNotifications,
-              onChanged: (value) => setState(() => _speedNotifications = value),
+              value: _showNetworkSpeed,
+              onChanged: _onSpeedToggleChanged,
               secondary: Container(
                 width: 40,
                 height: 40,
@@ -50,14 +57,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               title: const Text(
-                'Network Speed Alert',
+                'Show Network Speed',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               subtitle: Text(
-                _speedNotifications
+                _showNetworkSpeed
                     ? 'Shows current speed in the status bar'
                     : 'Speed alerts are muted',
               ),

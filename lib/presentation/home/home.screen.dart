@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/services/isp.config.dart';
+import 'package:netkeep/services/keep_alive_service.dart';
 import 'package:netkeep/services/ping.services.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
@@ -19,8 +20,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _activeProfileIndex = 0;
   int _customIntervalSeconds = 5;
-  bool _isRunning = false;
+  bool isServiceRunning = false;
   late String _selectedIspUrl;
+  late IspConfig _selectedIsp;
   final List<(String, String)> _logs = [];
   final PingService _pingService = PingService();
 
@@ -28,31 +30,54 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _selectedIspUrl = AppPreferences.selectedIspUrl;
+    _selectedIsp = supportedIsps.firstWhere(
+      (isp) => isp.url == _selectedIspUrl,
+      orElse: () => supportedIsps.first,
+    );
     _pingService.setTargetUrl(_selectedIspUrl);
+    _checkServiceStatus();
+  }
+
+  Future<void> _checkServiceStatus() async {
+    final running = await KeepAliveManager.isServiceRunning();
+    if (!mounted) return;
+    setState(() {
+      isServiceRunning = running;
+    });
   }
 
   void _onIspChanged(IspConfig isp) {
-    setState(() => _selectedIspUrl = isp.url);
+    setState(() {
+      _selectedIsp = isp;
+      _selectedIspUrl = isp.url;
+    });
     AppPreferences.setSelectedIspUrl(isp.url);
     _pingService.setTargetUrl(isp.url);
+    KeepAliveManager.updateTargetUrl(
+      ispName: isp.name,
+      targetUrl: isp.url,
+    );
   }
 
-  void _toggleKeepAlive() {
-    if (_isRunning) {
+  // Toggle the keep-alive state and start/stop the ping service
+  Future<void> _toggleKeepAlive() async {
+    if (isServiceRunning) {
+      await KeepAliveManager.stopService();
       _pingService.stopPing();
-      setState(() {
-        _isRunning = false;
-        if (AppPreferences.autoClearConsole) {
-          _logs.clear();
-        }
-      });
-    } else {
-      setState(() {
-        _isRunning = true;
+      if (!mounted) return;
+      if (AppPreferences.autoClearConsole) {
         _logs.clear();
-      });
+      }
+    } else {
+      final started = await KeepAliveManager.startService(
+        ispName: _selectedIsp.name,
+        targetUrl: _selectedIsp.url,
+      );
+      if (!started || !mounted) return;
+      _logs.clear();
       runProfile();
     }
+    await _checkServiceStatus();
   }
 
   void _handleLog((String, String) log) {
@@ -105,16 +130,18 @@ class _HomeScreenState extends State<HomeScreen> {
             subtitle: 'Connection control center',
           ),
           const SizedBox(height: 12),
-          _StatusCard(running: _isRunning),
+          _StatusCard(running: isServiceRunning),
           const SizedBox(height: 16),
           SizedBox(
             height: 55,
             child: FilledButton.icon(
               onPressed: _toggleKeepAlive,
-              icon: Icon(_isRunning ? Icons.stop : Icons.power_settings_new),
-              label: Text(_isRunning ? 'Stop Keep-Alive' : 'Start Keep-Alive'),
+              icon: Icon(isServiceRunning ? Icons.stop : Icons.power_settings_new),
+              label: Text(
+                isServiceRunning ? 'Stop Keep-Alive' : 'Start Keep-Alive',
+              ),
               style: FilledButton.styleFrom(
-                backgroundColor: _isRunning
+                backgroundColor: isServiceRunning
                     ? AppColors.secondaryColor
                     : AppColors.primaryColor,
                 foregroundColor: Colors.black,
