@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
 /**
  * Renders the live download speed as a compact two-line text bitmap that is
  * used as the dynamic status-bar small icon of the keep-alive foreground
- * notification: the numeric value on top and the lowercase unit ("kb"/"mb")
+ * notification: the numeric value on top and the unit ("Kb/s"/"Mb/s")
  * underneath, with no separator line so all vertical space goes to the glyphs.
  *
  * Android status-bar icons are alpha-masked: every non-transparent pixel is
@@ -55,12 +55,12 @@ object DynamicSpeedIcon {
     private const val FALLBACK_SIZE_PX = 48
 
     /**
-     * Compacts a bytes-per-second value into a lowercase short label for the
-     * status-bar icon: whole KB below 1 MB/s ("0kb", "100kb", "850kb"), MB
-     * with one decimal below 10 MB/s ("1.2mb", "5.5mb") and whole MB at
-     * 10 MB/s and above ("15mb", "20mb"). Values that round across a unit
+     * Compacts a bytes-per-second value into a short label for the
+     * status-bar icon: whole KB below 1 MB/s ("0Kb/s", "100Kb/s", "850Kb/s"),
+     * MB with one decimal below 10 MB/s ("1.2Mb/s", "5.5Mb/s") and whole MB at
+     * 10 MB/s and above ("15Mb/s", "20Mb/s"). Values that round across a unit
      * boundary (e.g. 1023.8 KB/s) roll over to the next unit instead of
-     * producing an over-wide label like "1024kb" that would clip.
+     * producing an over-wide label like "1024Kb/s" that would clip.
      */
     fun formatShortSpeed(bytesPerSecond: Long): String {
         val (value, unit) = speedParts(bytesPerSecond)
@@ -68,29 +68,32 @@ object DynamicSpeedIcon {
     }
 
     /**
-     * Splits a bytes-per-second value into the numeric value and the lowercase
-     * unit so the two-line status-bar icon can draw them as separate rows.
-     * Uses the same compaction/roll-over rules as [formatShortSpeed]: whole KB
-     * below 1 MB/s ("0", "100", "850"), one decimal below 10 MB/s ("1.2",
-     * "5.5") and whole MB at 10 MB/s and above ("15", "20"). Values that round
-     * across a unit boundary (e.g. 1023.8 KB/s) roll over to the next unit
-     * instead of producing an over-wide value like "1024" that would clip.
+     * Splits a bytes-per-second value into the numeric value and the unit so
+     * the two-line status-bar icon can draw them as separate rows. Uses the
+     * same compaction/roll-over rules as [formatShortSpeed]: whole KB below
+     * 1 MB/s ("0", "100", "850"), one decimal below 10 MB/s ("1.2", "5.5") and
+     * whole MB at 10 MB/s and above ("15", "20"). Values that round across a
+     * unit boundary (e.g. 1023.8 KB/s) roll over to the next unit instead of
+     * producing an over-wide value like "1024" that would clip.
      */
     private fun speedParts(bytesPerSecond: Long): Pair<String, String> {
-        if (bytesPerSecond <= 0L) return "0" to "kb"
+        if (bytesPerSecond <= 0L) return "0" to "Kb/s"
 
         val kb = bytesPerSecond / 1024.0
-        val kbRounded = kb.roundToInt()
-        if (kbRounded < 1024) return "${kbRounded}" to "kb"
+        // Round to the nearest KB but never truncate a positive speed to "0":
+        // e.g. 500 bytes/s (~0.5 KB/s) must show "1", not "0". There is no
+        // artificial minimum-speed threshold that would mask low speeds.
+        val kbRounded = maxOf(1, kb.roundToInt())
+        if (kbRounded < 1024) return "${kbRounded}" to "Kb/s"
 
         val mb = kb / 1024.0
-        if (mb < 10.0) return oneDecimalOrWhole(mb) to "mb"
+        if (mb < 10.0) return oneDecimalOrWhole(mb) to "Mb/s"
         val mbRounded = mb.roundToInt()
-        if (mbRounded < 1024) return "${mbRounded}" to "mb"
+        if (mbRounded < 1024) return "${mbRounded}" to "Mb/s"
 
         val gb = mb / 1024.0
-        if (gb < 10.0) return oneDecimalOrWhole(gb) to "gb"
-        return "${gb.roundToInt()}" to "gb"
+        if (gb < 10.0) return oneDecimalOrWhole(gb) to "Gb/s"
+        return "${gb.roundToInt()}" to "Gb/s"
     }
 
     // Renders a sub-10 value with one decimal place, rolling over to a whole
@@ -102,23 +105,23 @@ object DynamicSpeedIcon {
 
     /**
      * Generates a fixed 48x48 px bitmap with the given speed text drawn as two
-     * stacked rows: the bold numeric value near the top and the lowercase unit
-     * beneath it, with no separator line so every pixel of vertical space goes
-     * to the glyphs. White (alpha 255) on transparent is exactly what Android's
-     * status-bar alpha masking expects, so the OS tints the glyphs and never
-     * shows a black box. Both rows use the condensed Sans-Serif-Condensed Bold
-     * face so wide values and units stay crisp and fully on-canvas at the
-     * native status-bar size. The whole generation is wrapped in a try-catch so
-     * a draw failure falls back gracefully instead of crashing or freezing the
-     * calling thread.
+     * stacked rows: the bold numeric value near the top and the unit
+     * ("Kb/s"/"Mb/s") beneath it, with no separator line so every pixel of
+     * vertical space goes to the glyphs. White (alpha 255) on transparent is
+     * exactly what Android's status-bar alpha masking expects, so the OS tints
+     * the glyphs and never shows a black box. Both rows use the condensed
+     * Sans-Serif-Condensed Bold face so wide values and units stay crisp and
+     * fully on-canvas at the native status-bar size. The whole generation is
+     * wrapped in a try-catch so a draw failure falls back gracefully instead of
+     * crashing or freezing the calling thread.
      */
     fun createSpeedIcon(context: Context, speedText: String): IconCompat {
         return try {
-            val label = if (speedText.isBlank()) "0kb" else speedText
-            // Speed labels always end in a two-letter unit ("kb"/"mb"/"gb"),
-            // so the value and unit rows can be split by position.
-            val value = label.dropLast(2)
-            val unit = label.takeLast(2)
+            val label = if (speedText.isBlank()) "0Kb/s" else speedText
+            // Speed labels always end in a four-character unit ("Kb/s"/"Mb/s"/
+            // "Gb/s"), so the value and unit rows can be split by position.
+            val value = label.dropLast(4)
+            val unit = label.takeLast(4)
 
             // Exact 48x48 px canvas: this matches Android's fixed 24dp
             // status-bar slot at 2x density, so the OS never auto-downscales
@@ -138,15 +141,17 @@ object DynamicSpeedIcon {
             }
 
             // Numeric value row: largest text, drawn on the top line at the
-            // canvas midline x (24f) with baseline y = 23f. The condensed bold
+            // canvas midline x (24f) with baseline y = 25f. The condensed bold
             // face keeps wide values ("450", "10.5") inside the 48px width.
-            paint.textSize = 31f
+            paint.textSize = 32f
             paint.typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
-            canvas.drawText(value, TEXT_CENTER_X, 23f, paint)
+            canvas.drawText(value, TEXT_CENTER_X, 25f, paint)
 
-            // Unit row: smaller text, drawn on the bottom line at the canvas
-            // midline x (24f) with baseline y = 45f.
-            paint.textSize = 20f
+            // Unit row: four-character text, drawn on the bottom line at the
+            // canvas midline x (24f) with baseline y = 45f. "Kb/s"/"Mb/s" are
+            // four characters, so 19f is calibrated to fit horizontally inside
+            // the 48px width without clipping.
+            paint.textSize = 19f
             canvas.drawText(unit, TEXT_CENTER_X, 45f, paint)
 
             IconCompat.createWithBitmap(bitmap)
@@ -175,7 +180,7 @@ object DynamicSpeedIcon {
     // Cached state for the status-bar small icon. Both fields are only read
     // and written from the single icon-update thread below, so they never need
     // locking. `lastSpeedText` is the most recently rendered speed label: when
-    // a new tick formats the same label (e.g. it stays "0kb") the bitmap is
+    // a new tick formats the same label (e.g. it stays "0Kb/s") the bitmap is
     // NOT regenerated and the notification is NOT re-notified, which stops the
     // status-bar icon from flickering/re-rendering on every tick.
     private var lastSpeedText = ""
@@ -194,11 +199,12 @@ object DynamicSpeedIcon {
     // notify() for the service id: the plugin's own updateService() path is
     // deliberately never used for live updates, so no competing
     // notification (different visibility/group config) can race it. Its static
-    // config (PUBLIC visibility, no group keys) matches the plugin's initial
-    // foreground notification exactly, so even at service start there is no
-    // conflicting builder in play. Only rebuilt when the underlying channel id
-    // changes. All fields here are only touched from the single icon-update
-    // thread below, so they never need locking.
+    // config (PUBLIC visibility, fixed "netkeep_group", MAX priority, STATUS
+    // category, left-most sort key) is applied once and never changes across
+    // updates, so even at service start there is no conflicting builder in
+    // play. Only rebuilt when the underlying channel id changes. All fields
+    // here are only touched from the single icon-update thread below, so they
+    // never need locking.
     private var persistentBuilder: NotificationCompat.Builder? = null
     private var persistentBuilderChannelId = ""
     private var persistentServiceId = DEFAULT_SERVICE_ID
@@ -295,7 +301,7 @@ object DynamicSpeedIcon {
      * static app icon. Called when the "Show Network Speed" setting changes:
      * disabling reverts the icon to the launcher icon so no blank/black
      * transparent placeholder is ever left in the status bar, and enabling
-     * forces the next tick to re-render the speed bitmap (and shows "0kb"
+     * forces the next tick to re-render the speed bitmap (and shows "0Kb/s"
      * immediately when coming back from the static app icon).
      */
     fun setSpeedIconEnabled(context: Context, enabled: Boolean) {
@@ -353,29 +359,34 @@ object DynamicSpeedIcon {
             persistentServiceId = serviceId
         }
 
-        // Per-tick updates only swap the content and small icon on the existing
-        // builder and re-notify with the same service id so Android updates the
-        // notification IN-PLACE instead of tearing it down and recreating it,
-        // which is what caused the icon to blink/disappear. startForeground()
-        // is never called here: the foreground-service framework already did it
-        // once when the service started, and re-calling it on every tick
-        // triggers SystemUI's animation/blink of the icon slot.
+        // Per-tick updates only swap the content, small icon and timestamp on
+        // the existing builder and re-notify with the same service id so
+        // Android updates the notification IN-PLACE instead of tearing it down
+        // and recreating it, which is what caused the icon to blink/disappear.
+        // Updating setWhen() every tick forces SystemUI to re-sort the status
+        // bar icon order, snapping the icon back to the far-left slot within
+        // one tick even if another app's notification briefly pushed it aside.
+        // startForeground() is never called here: the foreground-service
+        // framework already did it once when the service started, and
+        // re-calling it on every tick triggers SystemUI's animation/blink of
+        // the icon slot.
         val builder = persistentBuilder ?: return
         builder.setContentTitle(title)
             .setContentText(text)
             .setSmallIcon(smallIcon)
+            .setWhen(System.currentTimeMillis())
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.notify(serviceId, builder.build())
     }
 
     // Creates the persistent notification builder once. All static metadata is
-    // locked down here -- PUBLIC visibility, service category, ongoing,
-    // only-alert-once, no timestamp, fixed sort key, LOW priority -- and NEVER
-    // switches between PRIVATE/PUBLIC or group/no-group across updates. Group
-    // keys are deliberately NOT set so the notification carries exactly the
-    // same config (PUBLIC visibility, no group) as the plugin's initial
-    // foreground notification, leaving no conflicting settings to race.
-    // Per-tick updates only touch title/text/small icon on this same builder
+    // locked down here -- PUBLIC visibility, STATUS category, ongoing,
+    // only-alert-once, hidden timestamp, ten-zero sort key, MAX priority, and
+    // the fixed "netkeep_group" -- and NEVER switches between PRIVATE/PUBLIC or
+    // group/no-group across updates. The ten leading zeros on the sort key plus
+    // the fixed group give the notification the absolute highest status-bar
+    // sorting order so the live speed icon snaps to the far-left slot. Per-tick
+    // updates only touch title/text/small icon/timestamp on this same builder
     // instance.
     private fun buildPersistentBuilder(
         context: Context,
@@ -385,17 +396,19 @@ object DynamicSpeedIcon {
             .setContentIntent(buildLaunchIntent(context))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            // Keep the icon pinned in place: PUBLIC visibility, no timestamp
-            // re-sorting, a fixed sort key, and a low-priority ongoing service
-            // category so Android never re-orders the status bar entry and
-            // SystemUI never animates/blinks the icon slot on update. No group
-            // key is set so this config exactly matches the plugin's initial
-            // foreground notification (PUBLIC visibility, no group).
+            // Keep the icon pinned in place: PUBLIC visibility, hidden timestamp
+            // (re-set every tick to force a re-sort), a fixed group + ten-zero
+            // sort key, and a MAX priority STATUS category so the notification
+            // sits at the absolute left of the status bar and SystemUI never
+            // animates/blinks the icon slot on update.
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setShowWhen(false)
-            .setSortKey("0_netkeep")
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            // Ten leading zeros give the sort key the absolute highest sorting
+            // order, forcing this notification to the left-most status-bar slot.
+            .setSortKey("0000000000")
+            .setGroup("netkeep_group")
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
             .apply {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     setForegroundServiceBehavior(
