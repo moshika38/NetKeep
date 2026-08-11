@@ -1,43 +1,53 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    
-     
+    <!-- Network access for the HTTP/HTTPS keep-alive probes. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <uses-permission android:name="android.permission.BIND_VPN_SERVICE" />
 
-    <!-- Foreground Service Permissions -->
+    <!-- Foreground Service Permissions: the keep-alive service runs as a
+         "specialUse" foreground service (the same category Z Pinger uses for
+         continuous connectivity probes). A dataSync service would be time
+         limited to 6h/day on Android 14+, which is incompatible with a
+         keep-alive service that must run indefinitely. FOREGROUND_SERVICE_
+         SPECIAL_USE is required on Android 14+ for the specialUse type;
+         POST_NOTIFICATIONS is the Android 13+ runtime permission for the
+         persistent notification. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Partial CPU wake lock: keeps the probe schedule exact while the screen
+         is off (Normal/Custom profiles only, matching how Z Pinger holds a
+         partial wake lock for its exact-timing modes). -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
-    
+
+    <!-- Restarts the keep-alive service after a device reboot when the user had
+         it running before the reboot (same behavior as Z Pinger's boot
+         receiver). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Data Usage Stats Permission -->
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
-    
-    <application 
-        android:label="NetKeep" 
-        android:name="${applicationName}" 
+
+    <application
+        android:label="NetKeep"
+        android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        
-        <activity 
-            android:name=".MainActivity" 
-            android:exported="true" 
-            android:launchMode="singleTop" 
-            android:taskAffinity="" 
-            android:theme="@style/LaunchTheme" 
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" 
-            android:hardwareAccelerated="true" 
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
-            
-            <meta-data 
-                android:name="io.flutter.embedding.android.NormalTheme" 
+
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"/>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -45,32 +55,25 @@
             </intent-filter>
         </activity>
 
-        <meta-data 
-            android:name="flutterEmbedding" 
+        <meta-data
+            android:name="flutterEmbedding"
             android:value="2"/>
 
-        <!-- Foreground Service Declaration -->
-        <service 
-            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
-            android:foregroundServiceType="dataSync"
-            android:exported="false" />
-
-        <!-- WireGuard relay: keeps the process foreground while the Go backend
-             tunnel (GoBackend$VpnService, declared by the tunnel library) runs.
-             The actual VPN TUN service is com.wireguard.android.backend.
-             GoBackend$VpnService which is merged in from the library manifest. -->
+        <!-- flutter_background_service foreground service. The plugin merges
+             its own declaration of id.flutter.flutter_background_service.
+             BackgroundService (stopWithTask=false, so probing continues when
+             the app is swiped away); this re-declaration adds the specialUse
+             type (required on Android 14+) and its Play-review justification.
+             The plugin also ships its own BootReceiver/WatchdogReceiver for
+             automatic resume after reboot. -->
         <service
-            android:name=".HutchVpnService"
-            android:exported="false"
-            android:foregroundServiceType="connectedDevice" />
-
-        <!-- Notification icon used by the keep-alive foreground service.
-             This is a fully transparent placeholder: the visible status-bar
-             icon is always the dynamic speed bitmap from DynamicSpeedIcon,
-             so the default app icon never appears. -->
-        <meta-data 
-            android:name="netkeep_keepalive_icon"
-            android:resource="@drawable/ic_notification_speed_placeholder" />
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:foregroundServiceType="specialUse"
+            tools:node="merge">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Pinging networks and logging connection health and latency statistics." />
+        </service>
     </application>
 
     <queries>

@@ -20,13 +20,13 @@ const _options = [
   _ProfileOption(
     Icons.sync,
     "Normal Mode",
-    "Interval 5s · Balanced",
+    "Interval 15s · Balanced",
     AppColors.primaryColor,
   ),
   _ProfileOption(
     Icons.battery_charging_full,
     "Saver Mode (Recommended)",
-    "Interval 20s · Power saving",
+    "Interval 60s · Power saving",
     AppColors.secondaryColor,
   ),
   _ProfileOption(
@@ -52,8 +52,10 @@ class ProfileDropdown extends StatelessWidget {
     required this.onCustomIntervalChanged,
   });
 
+  /// The observed Z Pinger interval set; Custom Mode cycles through these.
+  static const List<int> _customIntervals = [5, 10, 15, 30, 60];
   static const int _minIntervalSeconds = 5;
-  static const int _intervalStep = 5;
+  static const int _maxIntervalSeconds = 60;
 
   @override
   Widget build(BuildContext context) {
@@ -109,10 +111,18 @@ class ProfileDropdown extends StatelessWidget {
                     children: [
                       _StepperButton(
                         icon: Icons.remove,
-                        onPressed: customIntervalSeconds > _minIntervalSeconds
-                            ? () => onCustomIntervalChanged(
-                                  customIntervalSeconds - _intervalStep,
-                                )
+                        onPressed:
+                            customIntervalSeconds > _minIntervalSeconds
+                            ? () {
+                                final index = _customIntervals.indexOf(
+                                  customIntervalSeconds,
+                                );
+                                if (index > 0) {
+                                  onCustomIntervalChanged(
+                                    _customIntervals[index - 1],
+                                  );
+                                }
+                              }
                             : null,
                       ),
                       Padding(
@@ -128,9 +138,20 @@ class ProfileDropdown extends StatelessWidget {
                       ),
                       _StepperButton(
                         icon: Icons.add,
-                        onPressed: () => onCustomIntervalChanged(
-                          customIntervalSeconds + _intervalStep,
-                        ),
+                        onPressed:
+                            customIntervalSeconds < _maxIntervalSeconds
+                            ? () {
+                                final index = _customIntervals.indexOf(
+                                  customIntervalSeconds,
+                                );
+                                if (index >= 0 &&
+                                    index < _customIntervals.length - 1) {
+                                  onCustomIntervalChanged(
+                                    _customIntervals[index + 1],
+                                  );
+                                }
+                              }
+                            : null,
                       ),
                     ],
                   ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:netkeep/services/app.info.service.dart';
 import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/services/keep_alive_service.dart';
-import 'package:netkeep/services/vpn_service.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
 import 'package:netkeep/widgets/section.header.dart';
@@ -17,22 +16,18 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _showNetworkSpeed = AppPreferences.showNetworkSpeed;
   bool _autoClearConsole = AppPreferences.autoClearConsole;
-  bool _vpnTunnelMode = AppPreferences.vpnTunnelMode;
+  late Future<bool> _batteryExemption;
+
+  @override
+  void initState() {
+    super.initState();
+    _batteryExemption = KeepAliveManager.isIgnoringBatteryOptimizations();
+  }
 
   Future<void> _onSpeedToggleChanged(bool value) async {
     setState(() => _showNetworkSpeed = value);
     await AppPreferences.setShowNetworkSpeed(value);
     KeepAliveManager.updateShowNetworkSpeed(value);
-  }
-
-  Future<void> _onVpnTunnelModeChanged(bool value) async {
-    setState(() => _vpnTunnelMode = value);
-    await AppPreferences.setVpnTunnelMode(value);
-    if (!value) {
-      // Leaving tunnel mode: tear the relay down so the device falls back to
-      // the direct ISP path.
-      VpnService.stop();
-    }
   }
 
   @override
@@ -116,31 +111,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 28),
           const SectionHeader(
-            title: 'VPN Tunnel',
-            subtitle: 'WireGuard mode behavior',
+            title: 'Background & Battery',
+            subtitle: 'Background reliability settings',
           ),
           const SizedBox(height: 12),
           Card(
             margin: EdgeInsets.zero,
-            child: SwitchListTile(
-              value: _vpnTunnelMode,
-              onChanged: _onVpnTunnelModeChanged,
-              secondary: const _TileIcon(
-                icon: Icons.vpn_lock,
-                color: AppColors.secondaryColor,
-              ),
-              title: const Text(
-                'WireGuard VPN Tunnel Mode',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+            child: Column(
+              children: [
+                const ListTile(
+                  leading: _TileIcon(
+                    icon: Icons.battery_alert,
+                    color: AppColors.tertiaryColor,
+                  ),
+                  title: _TileTitle('Battery Optimization'),
+                  subtitle: Text(
+                    'Android may pause background network activity on some '
+                    'devices. Excluding NetKeep from battery optimization '
+                    'keeps probes running more reliably when the screen is off.',
+                  ),
                 ),
-              ),
-              subtitle: Text(
-                _vpnTunnelMode
-                    ? 'Routes all keep-alive traffic through Cloudflare WARP'
-                    : 'Pings go over the direct ISP connection',
-              ),
+                FutureBuilder<bool>(
+                  future: _batteryExemption,
+                  builder: (context, snapshot) {
+                    final exempt = snapshot.data ?? false;
+                    return ListTile(
+                      leading: const _TileIcon(
+                        icon: Icons.shield_outlined,
+                        color: AppColors.secondaryColor,
+                      ),
+                      title: const _TileTitle('Exemption Status'),
+                      subtitle: Text(
+                        exempt
+                            ? 'NetKeep is exempt from battery optimization'
+                            : 'NetKeep is not exempt from battery optimization',
+                      ),
+                      trailing: Icon(
+                        exempt
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        color: exempt
+                            ? AppColors.secondaryColor
+                            : AppColors.tertiaryColor,
+                      ),
+                    );
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        await KeepAliveManager
+                            .openBatteryOptimizationSettings();
+                        setState(() {
+                          _batteryExemption =
+                              KeepAliveManager.isIgnoringBatteryOptimizations();
+                        });
+                      },
+                      icon: const Icon(Icons.settings_power),
+                      label: const Text('Open Battery Settings'),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 28),

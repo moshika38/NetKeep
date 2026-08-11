@@ -1,30 +1,36 @@
 package com.example.netkeep
 
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.usage.NetworkStatsManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.NetworkCapabilities
 import android.net.TrafficStats
-import android.net.VpnService
 import android.os.Build
-import com.pravera.flutter_foreground_task.FlutterForegroundTaskLifecycleListener
-import com.pravera.flutter_foreground_task.FlutterForegroundTaskPlugin
-import com.pravera.flutter_foreground_task.FlutterForegroundTaskStarter
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationManagerCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import id.flutter.flutter_background_service.BackgroundService
 
-class MainActivity: FlutterActivity() {
+class MainActivity : FlutterActivity() {
+
     private val networkStatsChannel = "netkeep/network_stats"
     private val dataUsageChannel = "com.netkeep.app/network_stats"
-    private val statusBarIconChannel = "netkeep/status_bar_icon"
-    private val vpnChannel = "netkeep/vpn"
-    private val vpnEventsChannel = "netkeep/vpn/events"
 
-    // Live TrafficStats counters (system-wide Rx/Tx bytes since boot).
-    // Kept in the companion so it never captures a dead Activity.
+    // Bridges a few small platform capabilities the pure-Dart keep-alive
+    // service cannot reach on its own: notification permission (so the
+    // persistent foreground notification is visible on Android 13+) and
+    // battery-optimization status/settings.
+    private val platformChannel = "netkeep/platform"
+
     private val dataUsageHandler = MethodChannel.MethodCallHandler { call, result ->
         if (call.method != "getDeviceTotalData") {
             result.notImplemented()
@@ -48,200 +54,122 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-    private val statusBarIconHandler = MethodChannel.MethodCallHandler { call, result ->
+    private val platformHandler = MethodChannel.MethodCallHandler { call, result ->
         when (call.method) {
-            "setDownloadSpeed" -> {
-                try {
-                    val bytesPerSecond = argumentLong(call, "bytesPerSecond") ?: 0L
-                    val title = call.argument<String>("title")
-                    val text = call.argument<String>("text")
-                    DynamicSpeedIcon.updateSmallIcon(
-                        applicationContext, bytesPerSecond, title, text)
-                } catch (_: Throwable) {
-                    // Never let an icon update crash the main thread or fail
-                    // the method channel.
-                }
-                result.success(null)
+            "ensureNotificationPermission" -> ensureNotificationPermission(result)
+            "isNotificationPermissionGranted" -> result.success(notificationsEnabled())
+            "isIgnoringBatteryOptimizations" -> {
+                val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                result.success(pm.isIgnoringBatteryOptimizations(packageName))
             }
-            "setNotificationContent" -> {
+            "openBatteryOptimizationSettings" -> {
                 try {
-                    val title = call.argument<String>("title") ?: "NetKeep"
-                    val text = call.argument<String>("text") ?: ""
-                    DynamicSpeedIcon.setNotificationContent(applicationContext, title, text)
-                } catch (_: Throwable) {
-                    // Never let an icon update crash the main thread or fail
-                    // the method channel.
+                    startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    result.success(null)
+                } catch (_: Exception) {
+                    result.error("UNSUPPORTED", "Battery optimization settings unavailable", null)
                 }
-                result.success(null)
             }
-            "setSpeedIconEnabled" -> {
-                try {
-                    val enabled = when (val value = call.argument<Any>("enabled")) {
-                        is Boolean -> value
-                        is Number -> value.toInt() != 0
-                        else -> false
-                    }
-                    DynamicSpeedIcon.setSpeedIconEnabled(applicationContext, enabled)
-                } catch (_: Throwable) {
-                    // Never let an icon update crash the main thread or fail
-                    // the method channel.
-                }
-                result.success(null)
-            }
+            "setWakelock" -> setWakelock(call, result)
             else -> result.notImplemented()
         }
     }
 
-    init {
-        if (!listenerRegistered) {
-            listenerRegistered = true
-            FlutterForegroundTaskPlugin.addTaskLifecycleListener(
-                object : FlutterForegroundTaskLifecycleListener {
-                    override fun onEngineCreate(flutterEngine: FlutterEngine?) {
-                        // Registers the live stats channel on the background
-                        // service engine so the keep-alive task can call
-                        // TrafficStats from its own isolate.
-                        if (flutterEngine == null) return
-                        MethodChannel(
-                            flutterEngine.dartExecutor.binaryMessenger,
-                            networkStatsChannel
-                        ).setMethodCallHandler(liveStatsHandler)
-                        MethodChannel(
-                            flutterEngine.dartExecutor.binaryMessenger,
-                            statusBarIconChannel
-                        ).setMethodCallHandler(statusBarIconHandler)
-                    }
+    private var pendingNotificationPermission: ((Boolean) -> Unit)? = null
 
-                    override fun onTaskStart(starter: FlutterForegroundTaskStarter) {}
+    /**
+     * Ensures the Android 13+ notification permission is granted so the
+     * keep-alive foreground notification can actually be shown. On API < 33 the
+     * permission is implicitly granted, so this resolves true immediately.
+     * Denied - or the dialog not answered - resolves false, and the Dart side
+     * refuses to start the service (the persistent notification is part of the
+     * keep-alive UX).
+     */
+    private fun ensureNotificationPermission(result: MethodChannel.Result) {
+        if (notificationsEnabled()) {
+            result.success(true)
+            return
+        }
+        pendingNotificationPermission = { granted -> result.success(granted) }
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+            REQUEST_NOTIFICATION_PERMISSION,
+        )
+    }
 
-                    override fun onTaskRepeatEvent() {}
+    private fun notificationsEnabled(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            NotificationManagerCompat.from(this).areNotificationsEnabled()
 
-                    override fun onTaskDestroy() {}
-
-                    override fun onEngineWillDestroy() {}
-                }
-            )
+    /**
+     * Acquires or releases the partial wake lock owned by the
+     * flutter_background_service plugin. The plugin acquires the lock whenever
+     * the foreground service starts; keeping it is only justified for the
+     * exact-timing profiles (Normal/Custom). Saver Mode releases it so the CPU
+     * may doze between probes (relaxed cadence, better battery).
+     *
+     * [isHeld] guards keep the reference-counted lock balanced regardless of
+     * whether the plugin currently holds it.
+     */
+    private fun setWakelock(call: MethodCall, result: MethodChannel.Result) {
+        val enabled = call.argument<Boolean>("enabled") ?: false
+        try {
+            val lock = BackgroundService.getLock(this)
+            if (enabled) {
+                if (!lock.isHeld) lock.acquire()
+            } else {
+                if (lock.isHeld) lock.release()
+            }
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("WAKELOCK", e.message, null)
         }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        createKeepAliveNotificationChannel()
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, networkStatsChannel)
             .setMethodCallHandler(liveStatsHandler)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, dataUsageChannel)
             .setMethodCallHandler(dataUsageHandler)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, statusBarIconChannel)
-            .setMethodCallHandler(statusBarIconHandler)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, vpnChannel)
-            .setMethodCallHandler(vpnHandler)
-        // Live stage/statistics pushed by HutchVpnService while the WireGuard
-        // relay is up.
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, vpnEventsChannel)
-            .setStreamHandler(object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    HutchVpnService.eventSink = events
-                }
-
-                override fun onCancel(arguments: Any?) {
-                    HutchVpnService.eventSink = null
-                }
-            })
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, platformChannel)
+            .setMethodCallHandler(platformHandler)
     }
 
-    private val vpnHandler = MethodChannel.MethodCallHandler { call, result ->
-        when (call.method) {
-            "startWireGuard" -> {
-                val wgQuick = call.argument<String>("wgQuick")
-                try {
-                    if (wgQuick.isNullOrBlank()) {
-                        result.error("VPN_ERROR", "Missing WireGuard config", null)
-                        return@MethodCallHandler
-                    }
-                    val pending = VpnService.prepare(this)
-                    if (pending != null) {
-                        // User must approve the VPN connection first; the relay
-                        // is launched from onActivityResult once approved.
-                        pendingWgQuick = wgQuick
-                        startActivityForResult(pending, WG_VPN_REQUEST_CODE)
-                        result.success(mapOf(
-                            "started" to false,
-                            "consentRequired" to true
-                        ))
-                    } else {
-                        launchWireGuardRelay(wgQuick)
-                        result.success(mapOf(
-                            "started" to HutchVpnService.isActive,
-                            "consentRequired" to false
-                        ))
-                    }
-                } catch (e: Exception) {
-                    result.error("VPN_ERROR", e.message, null)
-                }
-            }
-            "stopWireGuard" -> {
-                try {
-                    stopService(Intent(this, HutchVpnService::class.java))
-                    result.success(true)
-                } catch (e: Exception) {
-                    result.error("VPN_ERROR", e.message, null)
-                }
-            }
-            "checkVpnPermission" -> {
-                result.success(try {
-                    VpnService.prepare(this) == null
-                } catch (e: Exception) {
-                    false
-                })
-            }
-            "getVpnStatus" -> {
-                result.success(HutchVpnService.isActive)
-            }
-            "getWgStatus" -> {
-                result.success(mapOf(
-                    "stage" to HutchVpnService.stage,
-                    "active" to HutchVpnService.isActive,
-                    "rxBytes" to HutchVpnService.rxBytes,
-                    "txBytes" to HutchVpnService.txBytes,
-                    "handshakeAgeMs" to HutchVpnService.handshakeAgeMs
-                ))
-            }
-            "getDeviceInfo" -> {
-                result.success(mapOf(
-                    "device" to Build.DEVICE,
-                    "model" to Build.MODEL,
-                    "android" to Build.VERSION.RELEASE,
-                    "sdk" to Build.VERSION.SDK_INT
-                ))
-            }
-            else -> result.notImplemented()
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_NOTIFICATION_PERMISSION) {
+            val granted = grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingNotificationPermission?.invoke(granted)
+            pendingNotificationPermission = null
         }
     }
 
-    private fun launchWireGuardRelay(wgQuick: String) {
-        try {
-            val vpnIntent = Intent(this, HutchVpnService::class.java)
-                .setAction(HutchVpnService.ACTION_START)
-                .putExtra(HutchVpnService.EXTRA_WG_QUICK, wgQuick)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(vpnIntent)
-            } else {
-                startService(vpnIntent)
-            }
-            android.util.Log.d("MainActivity", "WireGuard relay started")
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "Error starting WireGuard relay: ${e.message}")
+    /**
+     * Creates the notification channel the Dart keep-alive service posts to.
+     * flutter_background_service requires the channel to exist before
+     * configure() runs, which happens from Dart main() after the activity is
+     * created - so this always runs first.
+     */
+    private fun createKeepAliveNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val channel = NotificationChannel(
+            KEEP_ALIVE_CHANNEL_ID,
+            "NetKeep Keep-Alive Service",
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = "Keeps the connection alive and reports latency."
+            setShowBadge(false)
         }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == WG_VPN_REQUEST_CODE) {
-            if (resultCode == RESULT_OK) {
-                pendingWgQuick?.let { launchWireGuardRelay(it) }
-            }
-            pendingWgQuick = null
-        }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
     // Hardware Interface Level එකෙන් Total Device Data Usage එක ගන්නා Method එක
@@ -263,14 +191,8 @@ class MainActivity: FlutterActivity() {
     }
 
     companion object {
-        private const val WG_VPN_REQUEST_CODE = 4201
-
-        @Volatile
-        private var listenerRegistered = false
-
-        /** wg-quick profile awaiting VPN consent, launched on approval. */
-        @Volatile
-        private var pendingWgQuick: String? = null
+        private const val REQUEST_NOTIFICATION_PERMISSION = 1001
+        const val KEEP_ALIVE_CHANNEL_ID = "netkeep_keepalive_channel"
 
         /**
          * Safely reads a Long-typed argument from a method call. Dart sends

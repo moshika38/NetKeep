@@ -65,14 +65,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.7"
-  cryptography:
-    dependency: "direct main"
-    description:
-      name: cryptography
-      sha256: "3eda3029d34ec9095a27a198ac9785630fe525c0eb6a49f3d575272f8e792ef0"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.9.0"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -81,14 +73,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.9"
-  dbus:
-    dependency: transitive
+  dio:
+    dependency: "direct main"
     description:
-      name: dbus
-      sha256: "0ce9b0a839e6dee59a37a623d2fc26a35bbbe6404213e419b0d6411023d62645"
+      name: dio
+      sha256: "0df44ebba85e503958eb75d07eedd3c86275a58c1d3eda2f2ce8f0a2c3abbb3c"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.14"
+    version: "5.11.0"
+  dio_web_adapter:
+    dependency: transitive
+    description:
+      name: dio_web_adapter
+      sha256: "0786d0b7295a373de356fc0af4f6f1d0ab2844ed31b19dfc5e7556b70e24212c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.1"
   fake_async:
     dependency: transitive
     description:
@@ -126,6 +126,38 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_background_service:
+    dependency: "direct main"
+    description:
+      name: flutter_background_service
+      sha256: "70a1c185b1fa1a44f8f14ecd6c86f6e50366e3562f00b2fa5a54df39b3324d3d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.1.0"
+  flutter_background_service_android:
+    dependency: transitive
+    description:
+      name: flutter_background_service_android
+      sha256: ca0793d4cd19f1e194a130918401a3d0b1076c81236f7273458ae96987944a87
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.3.1"
+  flutter_background_service_ios:
+    dependency: transitive
+    description:
+      name: flutter_background_service_ios
+      sha256: "6037ffd45c4d019dab0975c7feb1d31012dd697e25edc05505a4a9b0c7dc9fba"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.3"
+  flutter_background_service_platform_interface:
+    dependency: transitive
+    description:
+      name: flutter_background_service_platform_interface
+      sha256: ca74aa95789a8304f4d3f57f07ba404faa86bed6e415f83e8edea6ad8b904a41
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.1.2"
   flutter_dotenv:
     dependency: "direct main"
     description:
@@ -134,14 +166,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.1"
-  flutter_foreground_task:
-    dependency: "direct main"
-    description:
-      name: flutter_foreground_task
-      sha256: "0dad7e6a4ac57aeb0e680e35ec7ae997f1a2b8579fdb85b16dd16e299b634f4f"
-      url: "https://pub.dev"
-    source: hosted
-    version: "10.0.0"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -177,7 +201,7 @@ packages:
     source: hosted
     version: "2.0.2"
   http:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -192,14 +216,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
-  intl:
-    dependency: "direct main"
-    description:
-      name: intl
-      sha256: "1ca20c894b1717686a2319b8548763d812bc0aabdac580420a44c5178c57a867"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.20.3"
   jni:
     dependency: transitive
     description:
@@ -288,6 +304,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.18.0"
+  mime:
+    dependency: transitive
+    description:
+      name: mime
+      sha256: "41a20518f0cb1256669420fdba0cd90d21561e560ac240f26ef8322e45bb7ed6"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
   objective_c:
     dependency: transitive
     description:
@@ -400,14 +424,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
-  process_run:
-    dependency: transitive
-    description:
-      name: process_run
-      sha256: dadbf4986ddab79086a107b2f893bacd580a523453f76238bc0c13a9faa982af
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.3.4+1"
   pub_semver:
     dependency: transitive
     description:
@@ -525,14 +541,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
-  synchronized:
-    dependency: transitive
-    description:
-      name: synchronized
-      sha256: "61894a1956de6b4fc1aefd0892e109514a1a706cbece3ac59decd90ff5a7a423"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.4.1+1"
   term_glyph:
     dependency: transitive
     description:
@@ -581,22 +589,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "15.2.0"
-  wakelock_plus:
-    dependency: "direct main"
-    description:
-      name: wakelock_plus
-      sha256: "7253bca0fcf40d8413ddfcf4d2a1fa0a82475e79be25a4f2c564b695c9351486"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.7.0"
-  wakelock_plus_platform_interface:
-    dependency: transitive
-    description:
-      name: wakelock_plus_platform_interface
-      sha256: "0618d1799f0b28bcf98255b4ee8313e6fc4d38589dc4ee5fe5840d57d1aff6da"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.6.0"
   web:
     dependency: transitive
     description:
@@ -613,14 +605,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.4.0"
-  wireguard_flutter_plus:
-    dependency: "direct main"
-    description:
-      name: wireguard_flutter_plus
-      sha256: "6a561135efdd8b9f1b62b6aa1957e53eb7bc4603dad2a13be00d7d1c592c9e0c"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.7"
   xdg_directories:
     dependency: transitive
     description:

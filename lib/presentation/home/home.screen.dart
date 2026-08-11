@@ -1,13 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/services/isp.config.dart';
 import 'package:netkeep/services/keep_alive_service.dart';
-import 'package:netkeep/services/ping.services.dart';
-import 'package:netkeep/services/vpn_service.dart';
-import 'package:netkeep/services/wireguard_config.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
 import 'package:netkeep/widgets/home_widgets/isp.dropdown.dart';
@@ -22,40 +18,81 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _activeProfileIndex = 0;
-  int _customIntervalSeconds = 5;
+  int _customIntervalSeconds = 15;
   bool isServiceRunning = false;
   late String _selectedIspUrl;
   late IspConfig _selectedIsp;
   final List<(String, String)> _logs = [];
-  final PingService _pingService = PingService();
+  StreamSubscription<KeepAliveEvent>? _eventSubscription;
 
-  // WireGuard relay state surfaced in the Live Console.
-  String _vpnStage = 'disconnected';
-  int? _vpnLatencyMs;
-  StreamSubscription<Map<String, dynamic>>? _vpnEventSub;
-  Timer? _vpnLatencyTimer;
+  /// Newest entries first; the console keeps at most this many lines.
+  static const int _maxLogEntries = 100;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _selectedIspUrl = AppPreferences.selectedIspUrl;
     _selectedIsp = supportedIsps.firstWhere(
       (isp) => isp.url == _selectedIspUrl,
       orElse: () => supportedIsps.first,
     );
-    _pingService.setTargetUrl(_selectedIspUrl);
-    _vpnEventSub = VpnService.eventStream.listen(_onVpnEvent);
+    _subscribeToEvents();
     _checkServiceStatus();
   }
 
   @override
   void dispose() {
-    _vpnEventSub?.cancel();
-    _vpnLatencyTimer?.cancel();
-    _pingService.stopPing();
+    WidgetsBinding.instance.removeObserver(this);
+    _eventSubscription?.cancel();
     super.dispose();
+  }
+
+  // Reconnects the UI to the (possibly already running) native service after
+  // the app is resumed or the activity is recreated.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkServiceStatus();
+    }
+  }
+
+  void _subscribeToEvents() {
+    _eventSubscription ??= KeepAliveManager.events.listen(_onServiceEvent);
+  }
+
+  void _onServiceEvent(KeepAliveEvent event) {
+    if (!mounted) return;
+    if (event.type == KeepAliveEventType.status) {
+      setState(() {
+        isServiceRunning = event.running ?? isServiceRunning;
+      });
+      return;
+    }
+    final message = event.message;
+    final time = event.time;
+    if (message != null && time != null) {
+      setState(() {
+        _logs.add((_formatConsoleTime(time), message));
+        // The console renders newest-first, so dropping from the front keeps
+        // the most recent [_maxLogEntries] lines.
+        if (_logs.length > _maxLogEntries) {
+          _logs.removeRange(0, _logs.length - _maxLogEntries);
+        }
+      });
+    }
+  }
+
+  String _formatConsoleTime(String iso) {
+    try {
+      final parsed = DateTime.parse(iso).toLocal();
+      String two(int value) => value.toString().padLeft(2, '0');
+      return '${two(parsed.hour)}:${two(parsed.minute)}:${two(parsed.second)}';
+    } catch (_) {
+      return iso;
+    }
   }
 
   Future<void> _checkServiceStatus() async {
@@ -64,37 +101,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       isServiceRunning = running;
     });
-    await _refreshVpn();
-  }
-
-  Future<void> _refreshVpn() async {
-    final snapshot = await VpnService.status();
-    if (!mounted) return;
-    final stage = snapshot['stage']?.toString() ?? 'disconnected';
-    setState(() => _vpnStage = stage);
-    if (stage == 'connected') {
-      _startVpnLatencyProbe();
-    }
-  }
-
-  void _onVpnEvent(Map<String, dynamic> event) {
-    if (!mounted) return;
-    if (event['type'] != 'stage') return;
-    final stage = event['stage']?.toString() ?? 'disconnected';
-    setState(() => _vpnStage = stage);
-    switch (stage) {
-      case 'connected':
-        _addHomeLog('WireGuard tunnel CONNECTED');
-        _startVpnLatencyProbe();
-      case 'connecting':
-        _addHomeLog('WireGuard tunnel connecting...');
-        _stopVpnLatencyProbe();
-      case 'error':
-        _addHomeLog('WireGuard tunnel error');
-        _stopVpnLatencyProbe();
-      default:
-        _stopVpnLatencyProbe();
-    }
   }
 
   void _onIspChanged(IspConfig isp) {
@@ -103,97 +109,71 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedIspUrl = isp.url;
     });
     AppPreferences.setSelectedIspUrl(isp.url);
-    _pingService.setTargetUrl(isp.url);
     KeepAliveManager.updateTargetUrl(
       ispName: isp.name,
       targetUrl: isp.url,
     );
   }
 
-  // Toggle the keep-alive state and start/stop the ping service
+  // Toggle the keep-alive state and start/stop the native foreground service.
   Future<void> _toggleKeepAlive() async {
     if (isServiceRunning) {
       await KeepAliveManager.stopService();
-      _pingService.stopPing();
-      if (AppPreferences.vpnTunnelMode) {
-        await VpnService.stop();
-        _addHomeLog('WireGuard relay stopped');
-      }
       if (!mounted) return;
       if (AppPreferences.autoClearConsole) {
         _logs.clear();
       }
     } else {
-      // VPN Tunnel Mode: bring the WireGuard (WARP) relay up first so every
-      // keep-alive ping egresses through the tunnel.
-      if (AppPreferences.vpnTunnelMode) {
-        _addHomeLog('Starting WireGuard tunnel (WARP)...');
-        final config = await WireGuardConfigStore.load();
-        final result = await VpnService.start(config);
-        if (result['error'] != null) {
-          _addHomeLog('Tunnel error: ${result['error']}');
-        } else if (result['consentRequired'] == true) {
-          _addHomeLog('Approve the VPN permission dialog');
-        } else {
-          _addHomeLog('Tunnel connecting...');
-        }
-        await VpnService.refreshStatus();
-      }
-
+      final (modeName, intervalSeconds) = _activeModeInfo;
       final started = await KeepAliveManager.startService(
         ispName: _selectedIsp.name,
         targetUrl: _selectedIsp.url,
+        modeName: modeName,
+        intervalSeconds: intervalSeconds,
       );
-      if (!started || !mounted) return;
+      if (!mounted) return;
+      if (!started) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Notification permission is required to run the keep-alive service.',
+            ),
+          ),
+        );
+        return;
+      }
       _logs.clear();
-      runProfile();
     }
     await _checkServiceStatus();
   }
 
-  void _addHomeLog(String message) {
-    final String currentTime = DateFormat('HH:mm:ss').format(DateTime.now());
-    _handleLog(("[$currentTime]", " $message"));
-  }
-
-  void _startVpnLatencyProbe() {
-    _vpnLatencyTimer?.cancel();
-    _vpnLatencyTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
-      if (!isServiceRunning || _vpnStage != 'connected') return;
-      final latency = await measureTunnelLatency();
-      if (mounted && _vpnStage == 'connected') {
-        setState(() => _vpnLatencyMs = latency);
-      }
-    });
-  }
-
-  void _stopVpnLatencyProbe() {
-    _vpnLatencyTimer?.cancel();
-    _vpnLatencyTimer = null;
-    _vpnLatencyMs = null;
-  }
-
-  void _handleLog((String, String) log) {
-    if (!mounted) return;
-    setState(() {
-      _logs.add(log);
-    });
-  }
-
-  void runProfile() {
+  // The currently selected power profile: (display name, ping interval).
+  // Intervals follow the observed Z Pinger set: 5/10/15/30/60 seconds with a
+  // 15s default.
+  (String, int) get _activeModeInfo {
     switch (_activeProfileIndex) {
       case 0:
-        _pingService.startNormalMode(_handleLog);
-        break;
-      case 2:
-        _pingService.startCustomMode(_customIntervalSeconds, _handleLog);
-        break;
+        return ('Normal Mode', 15);
       case 1:
-        _pingService.startSaverMode(_handleLog);
-        break;
+        return ('Saver Mode', 60);
+      case 2:
+        return ('Custom (${_customIntervalSeconds}s)', _customIntervalSeconds);
       default:
-        break;
+        return ('Normal Mode', 15);
     }
+  }
+
+  // Pushes the currently selected profile (mode + interval) to the running
+  // background keep-alive isolate so its probe cadence matches the UI.
+  void _syncBackgroundMode() {
+    if (!isServiceRunning) return;
+    final (modeName, intervalSeconds) = _activeModeInfo;
+    KeepAliveManager.updateConfig(
+      ispName: _selectedIsp.name,
+      targetUrl: _selectedIsp.url,
+      modeName: modeName,
+      intervalSeconds: intervalSeconds,
+    );
   }
 
   @override
@@ -246,16 +226,20 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 12),
           ProfileDropdown(
             selectedIndex: _activeProfileIndex,
-            onChanged: (index) => setState(() => _activeProfileIndex = index),
+            onChanged: (index) => setState(() {
+              _activeProfileIndex = index;
+              _syncBackgroundMode();
+            }),
             customIntervalSeconds: _customIntervalSeconds,
-            onCustomIntervalChanged: (value) =>
-                setState(() => _customIntervalSeconds = value),
+            onCustomIntervalChanged: (value) => setState(() {
+              _customIntervalSeconds = value;
+              _syncBackgroundMode();
+            }),
           ),
           const SizedBox(height: 28),
           LiveConsoleWidget(
             logs: _logs,
-            vpnStage: _vpnStage,
-            vpnLatencyMs: _vpnLatencyMs,
+            running: isServiceRunning,
           ),
         ],
       ),

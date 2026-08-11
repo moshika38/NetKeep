@@ -3,14 +3,12 @@ import 'package:netkeep/utils/theme.dart';
 
 class LiveConsoleWidget extends StatelessWidget {
   final List<(String, String)> _logs;
-  final String vpnStage;
-  final int? vpnLatencyMs;
+  final bool running;
 
   const LiveConsoleWidget({
     super.key,
     required this._logs,
-    this.vpnStage = 'disconnected',
-    this.vpnLatencyMs,
+    this.running = false,
   });
 
   @override
@@ -107,20 +105,6 @@ class LiveConsoleWidget extends StatelessWidget {
                     letterSpacing: 1.1,
                   ),
                 ),
-                if (vpnLatencyMs != null) ...[
-                  const SizedBox(width: 6),
-                  Container(width: 1, height: 9, color: _statusColor.withValues(alpha: 0.4)),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${vpnLatencyMs}ms',
-                    style: TextStyle(
-                      color: _statusColor,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -130,25 +114,12 @@ class LiveConsoleWidget extends StatelessWidget {
   }
 
   Color get _statusColor {
-    switch (vpnStage) {
-      case 'connected':
-        return AppColors.secondaryColor;
-      case 'connecting':
-        return AppColors.primaryColor;
-      default:
-        return AppColors.tertiaryColor;
-    }
+    if (running) return AppColors.secondaryColor;
+    return AppColors.tertiaryColor;
   }
 
   String get _statusLabel {
-    switch (vpnStage) {
-      case 'connected':
-        return 'CONNECTED';
-      case 'connecting':
-        return 'CONNECTING';
-      default:
-        return 'DISCONNECTED';
-    }
+    return running ? 'ACTIVE' : 'IDLE';
   }
 
   Widget _trafficLight(Color color) {
@@ -173,7 +144,7 @@ class LiveConsoleWidget extends StatelessWidget {
         ),
         children: [
           TextSpan(
-            text: time,
+            text: '$time | ',
             style: TextStyle(color: AppColors.textColor.withValues(alpha: 0.4)),
           ),
           TextSpan(
@@ -189,10 +160,12 @@ class LiveConsoleWidget extends StatelessWidget {
   }
 
   Color _resolveMessageColor(String message) {
-    final statusMatch = RegExp(r'Status:\s*(\d{3}|[A-Za-z]+)').firstMatch(message);
+    final statusMatch = RegExp(r'Status:\s*(\d{3})').firstMatch(message);
     final status = statusMatch?.group(1) ?? '';
 
-    if (status.toLowerCase() == 'timeout' || status.toLowerCase() == 'error') {
+    if (message.contains('Network Down') ||
+        message.contains('Timeout') ||
+        message.contains('Invalid')) {
       return AppColors.tertiaryColor;
     }
 
