@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/services/isp.config.dart';
 import 'package:netkeep/services/keep_alive_service.dart';
-import 'package:netkeep/services/network.speed.monitor.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
 import 'package:netkeep/widgets/home_widgets/isp.dropdown.dart';
@@ -27,8 +26,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final int _intervalSeconds = AppPreferences.pingIntervalSeconds;
   bool _batterySaver = AppPreferences.batterySaverEnabled;
   bool _showNetworkSpeed = AppPreferences.showNetworkSpeed;
-  int? _downloadBps;
-  int? _uploadBps;
   late String _selectedIspUrl;
   late IspConfig _selectedIsp;
   final List<(String, String)> _logs = [];
@@ -82,7 +79,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _handleProbeEvent(event);
         break;
       case KeepAliveEventType.speed:
-        _handleSpeedEvent(event);
         break;
     }
   }
@@ -110,14 +106,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       '${(event.message ?? '').replaceAll('Status: ', '')} '
       '| ${_formatTime(event.time, DateTime.now())}',
     );
-  }
-
-  void _handleSpeedEvent(KeepAliveEvent event) {
-    if (!_showNetworkSpeed || event.downloadSpeed == null) return;
-    setState(() {
-      _downloadBps = event.downloadSpeed;
-      _uploadBps = event.uploadSpeed;
-    });
   }
 
   String? _getStatsLine(KeepAliveStats? stats) {
@@ -166,8 +154,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (isServiceRunning) {
       setState(() {
         isServiceRunning = false;
-        _downloadBps = null;
-        _uploadBps = null;
       });
       await KeepAliveManager.stopService();
       return;
@@ -207,10 +193,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _onShowNetworkSpeedChanged(bool value) async {
     setState(() {
       _showNetworkSpeed = value;
-      if (!value) {
-        _downloadBps = null;
-        _uploadBps = null;
-      }
     });
     await AppPreferences.setShowNetworkSpeed(value);
     if (isServiceRunning) {
@@ -266,15 +248,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     iconColor: AppColors.primaryColor,
                     title: 'Display Network Speed',
                     subtitle: _showNetworkSpeed
-                        ? 'Showing live download / upload speed'
+                        ? 'Showing speed in the system status bar'
                         : 'Speed measurement is paused',
                     value: _showNetworkSpeed,
                     onChanged: _onShowNetworkSpeedChanged,
                   ),
-                  if (_showNetworkSpeed && isServiceRunning) ...[
-                    const SizedBox(height: 12),
-                    _buildSpeedCard(),
-                  ],
                   const SizedBox(height: 24),
                   const SectionHeader(
                     title: 'Ping Information',
@@ -476,78 +454,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           style: const TextStyle(color: AppColors.textColor, fontSize: 12),
         ),
       ),
-    );
-  }
-
-  Widget _buildSpeedCard() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18),
-      decoration: BoxDecoration(
-        color: AppColors.cardAltColor,
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        border: Border.all(color: AppColors.borderColor),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _speedColumn(
-              icon: Icons.arrow_downward,
-              iconColor: AppColors.primaryColor,
-              label: 'Download',
-              bps: _downloadBps,
-              formatter: NetworkSpeedMonitor.formatDownload,
-            ),
-          ),
-          Container(width: 1, height: 48, color: AppColors.borderColor),
-          Expanded(
-            child: _speedColumn(
-              icon: Icons.arrow_upward,
-              iconColor: AppColors.accentColor,
-              label: 'Upload',
-              bps: _uploadBps,
-              formatter: NetworkSpeedMonitor.formatUpload,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _speedColumn({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required int? bps,
-    required String Function(int) formatter,
-  }) {
-    return Column(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(AppRadii.tile),
-            border: Border.all(color: iconColor.withValues(alpha: 0.3)),
-          ),
-          child: Icon(icon, size: 18, color: iconColor),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(color: AppColors.textColor, fontSize: 11),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          bps == null ? '--' : formatter(bps),
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
     );
   }
 
