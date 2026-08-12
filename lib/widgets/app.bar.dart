@@ -25,20 +25,26 @@ class NetKeepAppBar extends StatelessWidget implements PreferredSizeWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.zero,
-              border: Border.all(color: AppColors.primaryColor, width: 0.5),
+              borderRadius: BorderRadius.circular(AppRadii.tile),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryColor.withValues(alpha: 0.35),
+                  blurRadius: 12,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-            child: const Icon(Icons.wifi, size: 18, color: Colors.black),
+            child: const Icon(Icons.wifi, size: 18, color: Color(0xFF1A1108)),
           ),
           // Image.asset("assets/app_icon.png",width: 34,height: 34,fit: BoxFit.cover,),
           const SizedBox(width: 12),
           Text.rich(
             TextSpan(
               children: [
-                const TextSpan(
+                TextSpan(
                   text: '> ',
                   style: TextStyle(
-                    color: AppColors.secondaryColor,
+                    color: AppColors.accentColor,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -46,7 +52,7 @@ class NetKeepAppBar extends StatelessWidget implements PreferredSizeWidget {
                   text: title.toUpperCase(),
                   style: Theme.of(context).textTheme.titleLarge!.copyWith(
                     fontSize: 17,
-                    letterSpacing: 1.6,
+                    letterSpacing: 1.2,
                   ),
                 ),
               ],

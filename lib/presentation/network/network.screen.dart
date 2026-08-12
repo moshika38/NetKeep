@@ -111,25 +111,49 @@ class _NetworkScreenState extends State<NetworkScreen>
           child: Container(
             height: MediaQuery.of(context).size.height * 0.2,
             width: MediaQuery.of(context).size.width * 0.9,
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(color: AppColors.cardBgColor),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.cardBgColor,
+              borderRadius: BorderRadius.circular(AppRadii.card),
+              border: Border.all(color: AppColors.borderColor),
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadii.tile),
+                    border: Border.all(
+                      color: AppColors.primaryColor.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.lock_outline,
+                    color: AppColors.primaryColor,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 const Text(
-                  "* Usage Access Permission Required",
+                  "Usage Access Permission Required",
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
+                    fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 8),
-                ElevatedButton(
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
                   onPressed: () async {
                     await DataUsageService.requestPermission();
                     _loadDataUsage();
                   },
-                  child: const Text("Grant Permission"),
+                  icon: const Icon(Icons.lock_open, size: 18),
+                  label: const Text("Grant Permission"),
                 ),
               ],
             ),

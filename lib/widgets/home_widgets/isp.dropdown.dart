@@ -24,21 +24,35 @@ class IspDropdown extends StatelessWidget {
     final selected = _selected;
     return InkWell(
       onTap: () => _showPicker(context),
-      borderRadius: BorderRadius.zero,
+      borderRadius: BorderRadius.circular(AppRadii.control),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: AppColors.cardBgColor,
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.circular(AppRadii.control),
           border: Border.all(color: AppColors.borderColor),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.public, size: 16, color: AppColors.primaryColor),
-            const SizedBox(width: 8),
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.public,
+                size: 15,
+                color: AppColors.primaryColor,
+              ),
+            ),
+            const SizedBox(width: 10),
             Text(
-              "ISP: ${selected.name}",
+              selected.isRecommended
+                  ? '${selected.name} (Recommended)'
+                  : selected.name,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,
@@ -56,56 +70,72 @@ class IspDropdown extends StatelessWidget {
   void _showPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.cardBgColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.zero,
-      ),
       builder: (sheetContext) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 child: Text(
-                  "SELECT ISP",
+                  'SELECT ISP',
                   style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ),
               for (var i = 0; i < supportedIsps.length; i++)
-                Container(
-                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  decoration: BoxDecoration(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Material(
                     color: supportedIsps[i].url == selectedUrl
-                        ? AppColors.primaryColor.withValues(alpha: 0.08)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.zero,
-                    border: Border.all(
-                      color: supportedIsps[i].url == selectedUrl
-                          ? AppColors.primaryColor
-                          : AppColors.white.withValues(alpha: 0.06),
-                      width: supportedIsps[i].url == selectedUrl ? 1.5 : 1,
+                        ? AppColors.primaryColor.withValues(alpha: 0.1)
+                        : AppColors.cardAltColor,
+                    borderRadius: BorderRadius.circular(AppRadii.tile),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(AppRadii.tile),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        onChanged(supportedIsps[i]);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(AppRadii.tile),
+                          border: Border.all(
+                            color: supportedIsps[i].url == selectedUrl
+                                ? AppColors.primaryColor.withValues(alpha: 0.7)
+                                : AppColors.borderColor,
+                            width: supportedIsps[i].url == selectedUrl ? 1.5 : 1,
+                          ),
+                        ),
+                        child: ListTile(
+                          leading: Icon(
+                            Icons.public,
+                            color: supportedIsps[i].url == selectedUrl
+                                ? AppColors.primaryColor
+                                : AppColors.textColor,
+                          ),
+                          title: Text(
+                            supportedIsps[i].isRecommended
+                                ? '${supportedIsps[i].name} (Recommended)'
+                                : supportedIsps[i].name,
+                            style: TextStyle(
+                              color: supportedIsps[i].url == selectedUrl
+                                  ? AppColors.white
+                                  : AppColors.textColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          trailing: supportedIsps[i].url == selectedUrl
+                              ? const Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.primaryColor,
+                                  size: 20,
+                                )
+                              : null,
+                        ),
+                      ),
                     ),
-                  ),
-                  child: ListTile(
-                    leading: const Icon(
-                      Icons.public,
-                      color: AppColors.primaryColor,
-                    ),
-                    title: Text(
-                      supportedIsps[i].isRecommended
-                          ? "${supportedIsps[i].name} (Recommended)"
-                          : supportedIsps[i].name,
-                    ),
-                    trailing: supportedIsps[i].url == selectedUrl
-                        ? const Icon(Icons.check, color: AppColors.primaryColor)
-                        : null,
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      onChanged(supportedIsps[i]);
-                    },
                   ),
                 ),
               const SizedBox(height: 8),

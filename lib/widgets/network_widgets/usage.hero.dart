@@ -26,6 +26,16 @@ class UsageHero extends StatelessWidget {
       color: AppColors.cardAltColor,
       child: Container(
         decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0x33FF7A1A),
+              Color(0x11FFB84D),
+              Colors.transparent,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: [0.0, 0.25, 1.0],
+          ),
           border: Border(
             top: BorderSide(color: AppColors.primaryColor, width: 3),
           ),
@@ -97,7 +107,7 @@ class UsageHero extends StatelessWidget {
                   child: _buildStat(
                     context,
                     icon: Icons.arrow_downward,
-                    color: AppColors.secondaryColor,
+                    color: AppColors.primaryColor,
                     value: download,
                     label: "Download",
                   ),
@@ -107,7 +117,7 @@ class UsageHero extends StatelessWidget {
                   child: _buildStat(
                     context,
                     icon: Icons.arrow_upward,
-                    color: AppColors.primaryColor,
+                    color: AppColors.accentColor,
                     value: upload,
                     label: "Upload",
                   ),

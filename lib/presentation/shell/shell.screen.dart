@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:netkeep/presentation/home/home.screen.dart';
 import 'package:netkeep/presentation/network/network.screen.dart';
 import 'package:netkeep/presentation/settings/settings.screen.dart';
+import 'package:netkeep/utils/theme.dart';
 
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
@@ -26,7 +27,7 @@ class _ShellScreenState extends State<ShellScreen> {
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(
-            top: BorderSide(color: Color(0x14FFFFFF)),
+            top: BorderSide(color: AppColors.borderColor),
           ),
         ),
         child: NavigationBar(

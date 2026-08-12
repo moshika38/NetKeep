@@ -13,10 +13,14 @@ class SectionHeader extends StatelessWidget {
       children: [
         Container(
           width: 4,
-          height: 30,
+          height: 28,
           decoration: BoxDecoration(
-            color: AppColors.primaryColor,
-            borderRadius: BorderRadius.zero,
+            gradient: const LinearGradient(
+              colors: [AppColors.primaryColor, AppColors.accentColor],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(2),
           ),
         ),
         const SizedBox(width: 10),
@@ -27,7 +31,7 @@ class SectionHeader extends StatelessWidget {
               Text(
                 title.toUpperCase(),
                 style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                  letterSpacing: 1.2,
+                  letterSpacing: 1.0,
                 ),
               ),
               if (subtitle != null) ...[
@@ -35,10 +39,10 @@ class SectionHeader extends StatelessWidget {
                 Text.rich(
                   TextSpan(
                     children: [
-                      const TextSpan(
+                      TextSpan(
                         text: '// ',
                         style: TextStyle(
-                          color: AppColors.secondaryColor,
+                          color: AppColors.accentColor,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

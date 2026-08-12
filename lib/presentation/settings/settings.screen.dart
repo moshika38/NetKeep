@@ -204,7 +204,7 @@ class _TileIcon extends StatelessWidget {
       height: 40,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.zero,
+        borderRadius: BorderRadius.circular(AppRadii.tile),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Icon(icon, color: color, size: 20),

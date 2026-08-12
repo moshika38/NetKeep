@@ -17,7 +17,7 @@ class LiveConsoleWidget extends StatelessWidget {
       height: MediaQuery.of(context).size.height * 0.28,
       decoration: BoxDecoration(
         color: AppColors.cardAltColor,
-        borderRadius: BorderRadius.zero,
+        borderRadius: BorderRadius.circular(AppRadii.card),
         border: Border.all(color: AppColors.borderColor),
       ),
       clipBehavior: Clip.antiAlias,
@@ -25,7 +25,7 @@ class LiveConsoleWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildTitleBar(context),
-          Divider(height: 1, color: AppColors.white.withValues(alpha: 0.08)),
+          Divider(height: 1, color: AppColors.white.withValues(alpha: 0.07)),
 
           Expanded(
             child: ListView.separated(
@@ -75,7 +75,7 @@ class LiveConsoleWidget extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: _statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.zero,
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: _statusColor.withValues(alpha: 0.4)),
             ),
             child: Row(
@@ -86,7 +86,7 @@ class LiveConsoleWidget extends StatelessWidget {
                   height: 7,
                   decoration: BoxDecoration(
                     color: _statusColor,
-                    borderRadius: BorderRadius.zero,
+                    shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
                         color: _statusColor.withValues(alpha: 0.8),
@@ -124,11 +124,11 @@ class LiveConsoleWidget extends StatelessWidget {
 
   Widget _trafficLight(Color color) {
     return Container(
-      width: 10,
-      height: 10,
+      width: 9,
+      height: 9,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.zero,
+        shape: BoxShape.circle,
         border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
     );
@@ -171,7 +171,7 @@ class LiveConsoleWidget extends StatelessWidget {
 
     final code = int.tryParse(status);
     if (code != null && code >= 400 && code < 500) {
-      return Colors.orangeAccent.withValues(alpha: 0.9);
+      return AppColors.accentColor;
     }
 
     return AppColors.textColor;
@@ -185,7 +185,7 @@ class LiveConsoleWidget extends StatelessWidget {
           style: TextStyle(
             fontFamily: 'monospace',
             fontSize: 12,
-            color: AppColors.secondaryColor,
+            color: AppColors.accentColor,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -225,7 +225,7 @@ class _BlinkingCursorState extends State<_BlinkingCursor>
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: Tween(begin: 0.0, end: 1.0).animate(_controller),
-      child: Container(width: 7, height: 13, color: AppColors.secondaryColor),
+      child: Container(width: 7, height: 13, color: AppColors.accentColor),
     );
   }
 }

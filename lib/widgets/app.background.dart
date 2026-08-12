@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:netkeep/utils/theme.dart';
 
+/// Full-bleed background: a faint orange grid with a warm radial glow at the
+/// top and low-key corner brackets. Keeps the app's tool-like identity without
+/// the harsh high-contrast lines of the old theme.
 class AppBackground extends StatelessWidget {
   final Widget? child;
   const AppBackground({super.key, this.child});
@@ -20,16 +23,19 @@ class AppBackground extends StatelessWidget {
 class _GridPainter extends CustomPainter {
   const _GridPainter();
 
-  static const double _spacing = 16;
+  static const double _spacing = 18;
   static const int _majorEvery = 4;
 
   @override
   void paint(Canvas canvas, Size size) {
+    _paintGlow(canvas, size);
+    _paintCheckerboard(canvas, size);
+
     final minor = Paint()
-      ..color = AppColors.primaryColor.withValues(alpha: 0.035)
+      ..color = AppColors.primaryColor.withValues(alpha: 0.025)
       ..strokeWidth = 0.5;
     final major = Paint()
-      ..color = AppColors.primaryColor.withValues(alpha: 0.07)
+      ..color = AppColors.primaryColor.withValues(alpha: 0.05)
       ..strokeWidth = 1;
 
     for (var i = 0; i * _spacing <= size.width; i++) {
@@ -46,14 +52,62 @@ class _GridPainter extends CustomPainter {
     _paintCornerBrackets(canvas, size);
   }
 
+  /// Alternating check cells at a very low alpha - a quiet "tech" checkerboard
+  /// that reads as texture rather than noise.
+  void _paintCheckerboard(Canvas canvas, Size size) {
+    final fill = Paint()
+      ..color = AppColors.primaryColor.withValues(alpha: 0.028);
+
+    for (var row = 0; row * _spacing <= size.height; row++) {
+      for (var col = 0; col * _spacing <= size.width; col++) {
+        // Alternate like a chessboard; also brighten cells that sit at a
+        // major grid intersection for a subtle depth boost.
+        final isMajor = (row % _majorEvery == 0) || (col % _majorEvery == 0);
+        if ((row + col).isEven) {
+          fill.color = AppColors.primaryColor.withValues(
+            alpha: isMajor ? 0.05 : 0.028,
+          );
+          canvas.drawRect(
+            Rect.fromLTWH(
+              col * _spacing,
+              row * _spacing,
+              _spacing,
+              _spacing,
+            ),
+            fill,
+          );
+        }
+      }
+    }
+  }
+
+  void _paintGlow(Canvas canvas, Size size) {
+    final glow = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          AppColors.primaryColor.withValues(alpha: 0.09),
+          AppColors.primaryColor.withValues(alpha: 0.04),
+          Colors.transparent,
+        ],
+        radius: 0.75,
+        stops: const [0.0, 0.45, 1.0],
+      ).createShader(
+        Rect.fromCircle(
+          center: Offset(size.width / 2, -size.height * 0.15),
+          radius: size.height,
+        ),
+      );
+    canvas.drawRect(Offset.zero & size, glow);
+  }
+
   void _paintCornerBrackets(Canvas canvas, Size size) {
     final bracket = Paint()
-      ..color = AppColors.primaryColor.withValues(alpha: 0.28)
+      ..color = AppColors.primaryColor.withValues(alpha: 0.16)
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
-    const inset = 12.0;
-    const length = 26.0;
+    const inset = 14.0;
+    const length = 24.0;
 
     canvas.drawPath(
       Path()
