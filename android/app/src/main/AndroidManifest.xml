@@ -17,8 +17,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Partial CPU wake lock: keeps the probe schedule exact while the screen
-         is off (Normal/Custom profiles only, matching how Z Pinger holds a
-         partial wake lock for its exact-timing modes). -->
+         is off. Battery Saver releases it so Android may sleep the CPU and the
+         ping cadence becomes best-effort. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Restarts the keep-alive service after a device reboot when the user had

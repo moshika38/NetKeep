@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- mdpi override of the plugin's ic_bg_service_small (same name + density
+     qualifier, so the app's clean wifi glyph wins on mdpi devices). -->
+<resources>
+    <item
+        type="drawable"
+        name="ic_bg_service_small">@drawable/ic_stat_netkeep</item>
+</resources>

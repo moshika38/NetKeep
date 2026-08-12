@@ -24,6 +24,8 @@ dependencies:
   package_info_plus: ^10.2.1
   dio: ^5.11.0
   flutter_background_service: ^5.1.0
+  netkeep_traffic_stats:
+    path: packages/netkeep_traffic_stats
 
 dev_dependencies:
   flutter_test:

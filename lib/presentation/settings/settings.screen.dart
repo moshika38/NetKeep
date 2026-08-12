@@ -14,7 +14,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _showNetworkSpeed = AppPreferences.showNetworkSpeed;
   bool _autoClearConsole = AppPreferences.autoClearConsole;
   late Future<bool> _batteryExemption;
 
@@ -24,11 +23,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _batteryExemption = KeepAliveManager.isIgnoringBatteryOptimizations();
   }
 
-  Future<void> _onSpeedToggleChanged(bool value) async {
-    setState(() => _showNetworkSpeed = value);
-    await AppPreferences.setShowNetworkSpeed(value);
-    KeepAliveManager.updateShowNetworkSpeed(value);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,41 +36,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Manage app alerts',
           ),
           const SizedBox(height: 12),
-          Card(
-            margin: EdgeInsets.zero,
-            child: SwitchListTile(
-              value: _showNetworkSpeed,
-              onChanged: _onSpeedToggleChanged,
-              secondary: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.zero,
-                  border: Border.all(
-                    color: AppColors.primaryColor.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.speed,
-                  color: AppColors.primaryColor,
-                  size: 20,
-                ),
-              ),
-              title: const Text(
-                'Show Network Speed',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(
-                _showNetworkSpeed
-                    ? 'Shows current speed in the status bar'
-                    : 'Speed alerts are muted',
-              ),
-            ),
-          ),
           const SizedBox(height: 28),
           const SectionHeader(
             title: 'Console',

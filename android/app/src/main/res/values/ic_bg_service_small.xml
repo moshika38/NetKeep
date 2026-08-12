@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Overrides the flutter_background_service plugin's generic small icon
+     (R.drawable.ic_bg_service_small) with NetKeep's clean wifi glyph so the
+     status-bar icon matches the app instead of the default background-service
+     icon. The plugin never references ic_stat_netkeep directly, so this alias
+     (plus its density-qualified siblings in values-hdpi/-mdpi/-xhdpi/-xxhdpi)
+     swaps the resource in. -->
+<resources>
+    <item
+        type="drawable"
+        name="ic_bg_service_small">@drawable/ic_stat_netkeep</item>
+</resources>

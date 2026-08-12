@@ -312,6 +312,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  netkeep_traffic_stats:
+    dependency: "direct main"
+    description:
+      path: "packages/netkeep_traffic_stats"
+      relative: true
+    source: path
+    version: "0.0.1"
   objective_c:
     dependency: transitive
     description:

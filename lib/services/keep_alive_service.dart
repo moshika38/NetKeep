@@ -7,6 +7,7 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/services/keep_alive_config.dart';
+import 'package:netkeep/services/network.speed.monitor.dart';
 import 'package:netkeep/services/ping.client.dart';
 
 /// Background-isolate entry point, invoked by [flutter_background_service]
@@ -31,11 +32,11 @@ Future<bool> onIosBackground(ServiceInstance service) async {
   return true;
 }
 
-enum KeepAliveEventType { probe, status }
+enum KeepAliveEventType { probe, status, speed }
 
 /// Rolling statistics of the keep-alive loop. Tracked inside the background
 /// isolate and pushed to the UI with every event so counters survive activity
-/// recreation and mode changes.
+/// recreation and configuration changes.
 class KeepAliveStats {
   final int totalPings;
   final int successfulPings;
@@ -105,17 +106,20 @@ class KeepAliveStats {
 /// A single event pushed from the background isolate over the plugin stream.
 /// `probe` events carry a formatted console line plus the transport result and
 /// latency; `status` events carry the current running state (used to reconnect
-/// the UI after the activity is recreated or the app resumes).
+/// the UI after the activity is recreated or the app resumes); `speed` events
+/// carry the latest measured download/upload throughput.
 class KeepAliveEvent {
   final KeepAliveEventType type;
   final String? time;
   final String? message;
   final bool? running;
-  final String? modeName;
   final int? intervalSeconds;
-  final bool? keepWakelock;
+  final bool? batterySaverEnabled;
+  final bool? showNetworkSpeed;
   final bool? success;
   final int? latency;
+  final int? downloadSpeed;
+  final int? uploadSpeed;
   final KeepAliveStats? stats;
 
   const KeepAliveEvent({
@@ -123,27 +127,33 @@ class KeepAliveEvent {
     this.time,
     this.message,
     this.running,
-    this.modeName,
     this.intervalSeconds,
-    this.keepWakelock,
+    this.batterySaverEnabled,
+    this.showNetworkSpeed,
     this.success,
     this.latency,
+    this.downloadSpeed,
+    this.uploadSpeed,
     this.stats,
   });
 
   factory KeepAliveEvent.fromMap(Map<dynamic, dynamic> map) {
     return KeepAliveEvent(
-      type: map['type'] == 'status'
-          ? KeepAliveEventType.status
-          : KeepAliveEventType.probe,
+      type: switch (map['type']) {
+        'status' => KeepAliveEventType.status,
+        'speed' => KeepAliveEventType.speed,
+        _ => KeepAliveEventType.probe,
+      },
       time: map['time'] as String?,
       message: map['message'] as String?,
       running: map['running'] as bool?,
-      modeName: map['modeName'] as String?,
       intervalSeconds: (map['intervalSeconds'] as num?)?.toInt(),
-      keepWakelock: map['keepWakelock'] as bool?,
+      batterySaverEnabled: map['batterySaverEnabled'] as bool?,
+      showNetworkSpeed: map['showNetworkSpeed'] as bool?,
       success: map['success'] as bool?,
       latency: (map['latency'] as num?)?.toInt(),
+      downloadSpeed: (map['downloadSpeed'] as num?)?.toInt(),
+      uploadSpeed: (map['uploadSpeed'] as num?)?.toInt(),
       stats: KeepAliveStats.fromMap(map),
     );
   }
@@ -152,18 +162,20 @@ class KeepAliveEvent {
 /// Flutter-side facade for the Dart keep-alive foreground service.
 ///
 /// Start/stop/configuration are forwarded to the background isolate over
-/// [flutter_background_service]'s message pipes; probe results and running
-/// state stream back over [events]. The UI never touches the background loop
-/// as a Dart object - on Android the loop lives in its own isolate.
+/// [flutter_background_service]'s message pipes; probe results, running state
+/// and live speed stream back over [events]. The UI never touches the
+/// background loop as a Dart object - on Android the loop lives in its own
+/// isolate.
 class KeepAliveManager {
   static bool get _isAndroid => Platform.isAndroid;
 
   static const MethodChannel _platformChannel = MethodChannel('netkeep/platform');
+  static const MethodChannel _wakelockChannel = MethodChannel('netkeep/wakelock');
 
   static Future<bool>? _configureFuture;
   static Stream<KeepAliveEvent>? _events;
 
-  /// Live probe/status events from the background isolate.
+  /// Live probe/status/speed events from the background isolate.
   static Stream<KeepAliveEvent> get events {
     return _events ??= FlutterBackgroundService()
         .on('keepAliveEvent')
@@ -196,7 +208,7 @@ class KeepAliveManager {
         notificationChannelId: 'netkeep_keepalive_channel',
         initialNotificationTitle: 'NetKeep Active',
         initialNotificationContent: 'Starting keep-alive monitoring',
-        foregroundServiceNotificationId: 1001,
+        foregroundServiceNotificationId: 1000,
         foregroundServiceTypes: const [AndroidForegroundType.specialUse],
       ),
     );
@@ -216,9 +228,9 @@ class KeepAliveManager {
   static Future<bool> startService({
     required String ispName,
     required String targetUrl,
-    required String modeName,
     required int intervalSeconds,
-    bool? keepWakelock,
+    bool batterySaver = false,
+    bool? showNetworkSpeed,
   }) async {
     if (!_isAndroid) return false;
     await initService();
@@ -229,14 +241,11 @@ class KeepAliveManager {
     final config = KeepAliveConfigData(
       targetUrl: _normalizeTarget(targetUrl),
       ispName: ispName,
-      modeName: modeName,
       intervalSeconds: intervalSeconds,
-      showNetworkSpeed: AppPreferences.showNetworkSpeed,
-      // Saver Mode relaxes the ping cadence and does not hold an exact-time
-      // wake lock. The plugin acquires a partial wake lock when the foreground
-      // service starts; [setWakelock] releases/re-acquires it from here so the
-      // lock is only held while exact timing is actually required.
-      keepWakelock: keepWakelock ?? (modeName != 'Saver Mode'),
+      // Battery Saver releases the persistent CPU wake lock, so the ping
+      // cadence may be deferred by Android until a natural wake-up.
+      batterySaverEnabled: batterySaver,
+      showNetworkSpeed: showNetworkSpeed ?? AppPreferences.showNetworkSpeed,
     );
 
     // Persist before starting: the background isolate reads this to decide
@@ -279,7 +288,7 @@ class KeepAliveManager {
   }
 
   /// Updates only the target ISP/URL of the running service without changing
-  /// its mode or interval.
+  /// its interval or Battery Saver state.
   static void updateTargetUrl({
     required String ispName,
     required String targetUrl,
@@ -292,30 +301,22 @@ class KeepAliveManager {
   static void updateConfig({
     String? ispName,
     String? targetUrl,
-    String? modeName,
     int? intervalSeconds,
+    bool? batterySaver,
     bool? showNetworkSpeed,
-    bool? keepWakelock,
   }) {
     if (!_isAndroid) return;
     final map = <String, dynamic>{};
-    var resolvedWakelock = keepWakelock;
     if (ispName != null) map['ispName'] = ispName;
     if (targetUrl != null) map['targetUrl'] = _normalizeTarget(targetUrl);
-    if (modeName != null) {
-      map['modeName'] = modeName;
-      // Mode switches also flip the wake-lock policy in the running service.
-      resolvedWakelock = keepWakelock ?? (modeName != 'Saver Mode');
-      map['keepWakelock'] = resolvedWakelock;
-    } else if (keepWakelock != null) {
-      map['keepWakelock'] = keepWakelock;
-    }
     if (intervalSeconds != null) map['intervalSeconds'] = intervalSeconds;
-    if (showNetworkSpeed != null) map['showNetworkSpeed'] = showNetworkSpeed;
-    if (resolvedWakelock != null) {
-      // Adjust the native partial wake lock to match the new profile.
-      setWakelock(resolvedWakelock);
+    if (batterySaver != null) {
+      map['batterySaverEnabled'] = batterySaver;
+      // Toggling Battery Saver also flips the native partial wake lock so the
+      // new behavior applies immediately, without restarting the service.
+      setWakelock(!batterySaver);
     }
+    if (showNetworkSpeed != null) map['showNetworkSpeed'] = showNetworkSpeed;
     try {
       FlutterBackgroundService().invoke('appUpdateConfig', map);
     } on PlatformException {
@@ -323,17 +324,26 @@ class KeepAliveManager {
     }
   }
 
+  static void updateBatterySaver(bool value) {
+    updateConfig(batterySaver: value);
+  }
+
   static void updateShowNetworkSpeed(bool value) {
     updateConfig(showNetworkSpeed: value);
   }
 
   /// Acquires or releases the partial wake lock backing the keep-alive
-  /// service. Held only in Normal/Custom (exact-timing) profiles; Saver Mode
-  /// runs relaxed without it so the CPU may doze between probes.
+  /// service. Held by default so the ping schedule stays exact; Battery Saver
+  /// releases it so the CPU may doze between probes and Android can defer the
+  /// ping loop until a natural wake-up.
+  ///
+  /// The channel is handled by the `netkeep_traffic_stats` plugin, which is
+  /// attached to *every* Flutter engine (UI and background isolate), so the
+  /// lock can be balanced even when the service resumes after a reboot.
   static Future<void> setWakelock(bool enabled) async {
     if (!_isAndroid) return;
     try {
-      await _platformChannel.invokeMethod<void>('setWakelock', {
+      await _wakelockChannel.invokeMethod<void>('setWakelock', {
         'enabled': enabled,
       });
     } on PlatformException {
@@ -407,7 +417,13 @@ class KeepAliveManager {
 /// Concurrency: a monotonic [_generation] counter invalidates any stale loop
 /// whenever the loop is restarted (new target, new interval, stop). Combined
 /// with the [_probeInFlight] guard this guarantees at most one probe in flight
-/// and zero stale ticks after a config change.
+/// and zero stale ticks after a config change - so a single authoritative ping
+/// loop exists at all times.
+///
+/// Battery Saver: when enabled the CPU wake lock is released, so Android may
+/// suspend the CPU and defer this loop's timer until a natural wake-up. The
+/// configured interval is the target cadence but timing is best-effort while
+/// the device sleeps.
 class KeepAliveEngine {
   KeepAliveEngine(this._service);
 
@@ -425,9 +441,15 @@ class KeepAliveEngine {
 
   KeepAliveStats _stats = KeepAliveStats.empty;
 
+  final NetworkSpeedMonitor _speedMonitor = NetworkSpeedMonitor();
+  Timer? _speedTicker;
+
   int _generation = 0;
   bool _running = false;
   bool _probeInFlight = false;
+
+  String? _lastNotifTitle;
+  String? _lastNotifContent;
 
   /// Restores the persisted config and decides whether to resume pinging. When
   /// the OS restarted the service (reboot) but the user had stopped it, the
@@ -439,6 +461,9 @@ class KeepAliveEngine {
       await _service.stopSelf();
       return;
     }
+    // Balance the wake lock the plugin acquires at service start: Battery
+    // Saver releases it so Android may sleep the CPU and defer the loop.
+    await KeepAliveManager.setWakelock(_config.keepWakelock);
     _startLoop();
     _emitStatus();
   }
@@ -447,6 +472,10 @@ class KeepAliveEngine {
     if (patch == null || patch.isEmpty) return;
     _config = _config.merge(patch);
     _persistConfig();
+    _startSpeedTicker();
+    // Keep the wake lock in sync even when the change was applied directly to
+    // an already-running isolate.
+    KeepAliveManager.setWakelock(_config.keepWakelock);
     if (_running) {
       // Restart the loop so a new target/interval takes effect immediately;
       // the generation bump makes any in-flight/stale loop exit after its
@@ -458,18 +487,47 @@ class KeepAliveEngine {
 
   Future<void> stop() async {
     if (!_running) {
+      _stopSpeedTicker();
+      await _speedMonitor.hideSpeedIcon();
       await _service.stopSelf();
       return;
     }
     _running = false;
     _generation++;
+    _stopSpeedTicker();
+    await _speedMonitor.hideSpeedIcon();
     _emitStatus(running: false);
     _emitProbe(
-      '${_config.modeName} | Service stopped',
+      'Keep-Alive service stopped',
       success: null,
       latency: 0,
     );
     await _service.stopSelf();
+  }
+
+  void _startSpeedTicker() {
+    _stopSpeedTicker();
+    if (!_running || !_config.showNetworkSpeed) {
+      _speedMonitor.hideSpeedIcon();
+      return;
+    }
+    _speedMonitor.reset();
+    _speedTicker = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (!_running || !_config.showNetworkSpeed) {
+        _stopSpeedTicker();
+        await _speedMonitor.hideSpeedIcon();
+        return;
+      }
+      final speeds = await _speedMonitor.sample();
+      if (speeds != null) {
+        _emitSpeed(speeds.$1, speeds.$2);
+      }
+    });
+  }
+
+  void _stopSpeedTicker() {
+    _speedTicker?.cancel();
+    _speedTicker = null;
   }
 
   /// (Re)starts the probe loop. Bumping the generation invalidates the old
@@ -479,6 +537,7 @@ class KeepAliveEngine {
     final generation = ++_generation;
     _running = true;
     _stats = KeepAliveStats.empty;
+    _startSpeedTicker();
     _runLoop(generation);
   }
 
@@ -549,20 +608,32 @@ class KeepAliveEngine {
     }
   }
 
+  /// Keeps the foreground service notification text intentional: "NetKeep
+  /// Active / Keeping connection alive" while the connection is up, and
+  /// "Connection Lost" on a transport-level failure. Only re-issued when the
+  /// text actually changes, so the status bar does not flicker.
+  ///
+  /// Updates go through the unified notification builder
+  /// (`netkeep/speed_notification` channel) instead of the background plugin's
+  /// `setForegroundNotificationInfo()`: that call re-posts notification 1000
+  /// with the plugin's own default builder config (PRIVATE visibility, no
+  /// group), which conflicts with the unified builder's PUBLIC/group/priority
+  /// config and is the dual `notify(1000)` owner being eliminated. The plugin
+  /// only posts 1000 once at service start, after which this single builder
+  /// owns every live update.
   Future<void> _updateNotification(PingResult result) async {
     if (_service is! AndroidServiceInstance) return;
-    final androidService = _service;
-    if (!await androidService.isForegroundService()) return;
-    if (result.ok) {
-      await androidService.setForegroundNotificationInfo(
-        title: 'NetKeep Active',
-        content: 'ping: ${result.rttMs}ms',
-      );
-    } else {
-      await androidService.setForegroundNotificationInfo(
-        title: 'NetKeep: Connection Lost',
-        content: 'Connection Signal Dropped / Network Down',
-      );
+    final title = 'NetKeep Active';
+    final content = result.ok
+        ? 'Keeping connection alive · ${result.rttMs}ms'
+        : 'Connection Lost';
+    if (title == _lastNotifTitle && content == _lastNotifContent) return;
+    _lastNotifTitle = title;
+    _lastNotifContent = content;
+    try {
+      await _speedMonitor.updateContent(title: title, content: content);
+    } catch (_) {
+      // Notification text update is best-effort.
     }
   }
 
@@ -570,9 +641,9 @@ class KeepAliveEngine {
     _service.invoke('keepAliveEvent', <String, dynamic>{
       'type': 'status',
       'running': running ?? _running,
-      'modeName': _config.modeName,
       'intervalSeconds': _config.intervalSeconds,
-      'keepWakelock': _config.keepWakelock,
+      'batterySaverEnabled': _config.batterySaverEnabled,
+      'showNetworkSpeed': _config.showNetworkSpeed,
       ..._stats.toMap(),
     });
   }
@@ -589,6 +660,14 @@ class KeepAliveEngine {
       'success': success ?? false,
       'latency': latency ?? 0,
       ..._stats.toMap(),
+    });
+  }
+
+  void _emitSpeed(int downloadBps, int uploadBps) {
+    _service.invoke('keepAliveEvent', <String, dynamic>{
+      'type': 'speed',
+      'downloadSpeed': downloadBps,
+      'uploadSpeed': uploadBps,
     });
   }
 

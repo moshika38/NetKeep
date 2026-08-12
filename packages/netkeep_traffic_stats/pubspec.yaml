@@ -1,0 +1,25 @@
+name: netkeep_traffic_stats
+description: >-
+  Exposes Android TrafficStats RX/TX byte counters over the
+  `netkeep/network_stats` method channel on every Flutter engine it is
+  attached to, including the flutter_background_service isolate.
+version: 0.0.1
+publish_to: "none"
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.netkeep.traffic_stats
+        pluginClass: NetkeepTrafficStatsPlugin

@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.NetworkCapabilities
-import android.net.TrafficStats
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
@@ -18,11 +17,9 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import id.flutter.flutter_background_service.BackgroundService
 
 class MainActivity : FlutterActivity() {
 
-    private val networkStatsChannel = "netkeep/network_stats"
     private val dataUsageChannel = "com.netkeep.app/network_stats"
 
     // Bridges a few small platform capabilities the pure-Dart keep-alive
@@ -70,7 +67,6 @@ class MainActivity : FlutterActivity() {
                     result.error("UNSUPPORTED", "Battery optimization settings unavailable", null)
                 }
             }
-            "setWakelock" -> setWakelock(call, result)
             else -> result.notImplemented()
         }
     }
@@ -102,37 +98,10 @@ class MainActivity : FlutterActivity() {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             NotificationManagerCompat.from(this).areNotificationsEnabled()
 
-    /**
-     * Acquires or releases the partial wake lock owned by the
-     * flutter_background_service plugin. The plugin acquires the lock whenever
-     * the foreground service starts; keeping it is only justified for the
-     * exact-timing profiles (Normal/Custom). Saver Mode releases it so the CPU
-     * may doze between probes (relaxed cadence, better battery).
-     *
-     * [isHeld] guards keep the reference-counted lock balanced regardless of
-     * whether the plugin currently holds it.
-     */
-    private fun setWakelock(call: MethodCall, result: MethodChannel.Result) {
-        val enabled = call.argument<Boolean>("enabled") ?: false
-        try {
-            val lock = BackgroundService.getLock(this)
-            if (enabled) {
-                if (!lock.isHeld) lock.acquire()
-            } else {
-                if (lock.isHeld) lock.release()
-            }
-            result.success(null)
-        } catch (e: Exception) {
-            result.error("WAKELOCK", e.message, null)
-        }
-    }
-
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         createKeepAliveNotificationChannel()
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, networkStatsChannel)
-            .setMethodCallHandler(liveStatsHandler)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, dataUsageChannel)
             .setMethodCallHandler(dataUsageHandler)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, platformChannel)
@@ -205,19 +174,5 @@ class MainActivity : FlutterActivity() {
                 is String -> value.toLongOrNull()
                 else -> null
             }
-
-        private val liveStatsHandler = MethodChannel.MethodCallHandler { call, result ->
-            when (call.method) {
-                "getRxBytes" -> {
-                    val rxBytes = TrafficStats.getTotalRxBytes()
-                    result.success(if (rxBytes == TrafficStats.UNSUPPORTED.toLong()) 0L else rxBytes)
-                }
-                "getTxBytes" -> {
-                    val txBytes = TrafficStats.getTotalTxBytes()
-                    result.success(if (txBytes == TrafficStats.UNSUPPORTED.toLong()) 0L else txBytes)
-                }
-                else -> result.notImplemented()
-            }
-        }
     }
 }

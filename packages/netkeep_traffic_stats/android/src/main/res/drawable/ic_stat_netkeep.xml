@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Monochrome wifi glyph used as the static status-bar small icon of the
-    keep-alive foreground notification.
+    keep-alive foreground notification whenever the live speed readout is off.
+    Same design as the app's ic_stat_netkeep vector so both states are visually
+    consistent.
 
     Android notification small-icon rules honored here:
       * single-color white silhouette (the OS tints it with the status-bar
