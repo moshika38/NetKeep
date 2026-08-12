@@ -9,6 +9,7 @@ import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/services/keep_alive_config.dart';
 import 'package:netkeep/services/network.speed.monitor.dart';
 import 'package:netkeep/services/ping.client.dart';
+import 'package:netkeep/services/speed.heartbeat.dart';
 
 /// Background-isolate entry point, invoked by [flutter_background_service]
 /// whenever the Android foreground service is (re)started - including the
@@ -106,8 +107,10 @@ class KeepAliveStats {
 /// A single event pushed from the background isolate over the plugin stream.
 /// `probe` events carry a formatted console line plus the transport result and
 /// latency; `status` events carry the current running state (used to reconnect
-/// the UI after the activity is recreated or the app resumes); `speed` events
-/// carry the latest measured download/upload throughput.
+/// the UI after the activity is recreated or the app resumes). `speed` events
+/// are retained for stream compatibility but no longer emitted: the live speed
+/// readout is self-contained in the background isolate and never surfaces in
+/// the UI.
 class KeepAliveEvent {
   final KeepAliveEventType type;
   final String? time;
@@ -259,7 +262,6 @@ class KeepAliveManager {
         // Applies the config to an already-running isolate immediately; a
         // freshly started isolate picks it up from persisted preferences.
         FlutterBackgroundService().invoke('appStart', config.toMap());
-        await setWakelock(config.keepWakelock);
       } else {
         await AppPreferences.setKeepAliveAutoRestart(false);
       }
@@ -273,10 +275,10 @@ class KeepAliveManager {
   static Future<bool> stopService() async {
     if (!_isAndroid) return true;
     // Clear the auto-restart flag first so a boot restart does not resume a
-    // service the user explicitly stopped. The wake lock is also released so
-    // it is not held after the probe loop has gone away.
+    // service the user explicitly stopped. The background isolate decides
+    // whether to keep running (network-speed-only mode) or tear everything
+    // down, and balances the wake lock itself.
     await AppPreferences.setKeepAliveAutoRestart(false);
-    await setWakelock(false);
     try {
       FlutterBackgroundService().invoke('appStop');
       return true;
@@ -328,8 +330,56 @@ class KeepAliveManager {
     updateConfig(batterySaver: value);
   }
 
-  static void updateShowNetworkSpeed(bool value) {
-    updateConfig(showNetworkSpeed: value);
+  /// Toggles the network-speed heartbeat independently of the Ping Service.
+  ///
+  /// When the service is already running (ping and/or speed) the change is
+  /// pushed straight into the background isolate. When nothing is running and
+  /// the user enables the speed indicator, the background service is started
+  /// for speed-only mode; the background isolate keeps it alive as long as the
+  /// toggle stays on, regardless of the ping loop state.
+  static Future<bool> setShowNetworkSpeedEnabled(bool value) async {
+    if (!_isAndroid) return true;
+    await AppPreferences.setShowNetworkSpeed(value);
+    final running = await isServiceRunning();
+    if (running) {
+      updateConfig(showNetworkSpeed: value);
+      return true;
+    }
+    if (value) {
+      return await startSpeedIndicator();
+    }
+    return true;
+  }
+
+  /// Starts the background service for the network-speed indicator only. The
+  /// keep-alive ping loop stays stopped, so unlike [startService] this does
+  /// NOT set the boot auto-restart flag.
+  static Future<bool> startSpeedIndicator() async {
+    if (!_isAndroid) return false;
+    await initService();
+
+    final granted = await _ensureNotificationPermission();
+    if (!granted) return false;
+
+    final persisted = AppPreferences.keepAliveConfig;
+    final config = KeepAliveConfigData(
+      targetUrl: persisted.targetUrl,
+      ispName: persisted.ispName,
+      intervalSeconds: persisted.intervalSeconds,
+      batterySaverEnabled: AppPreferences.batterySaverEnabled,
+      showNetworkSpeed: true,
+    );
+    await AppPreferences.setKeepAliveConfig(config);
+
+    try {
+      final started = await FlutterBackgroundService().startService();
+      if (started) {
+        FlutterBackgroundService().invoke('appStart', config.toMap());
+      }
+      return started;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Acquires or releases the partial wake lock backing the keep-alive
@@ -414,6 +464,11 @@ class KeepAliveManager {
 /// The wait happens AFTER the current probe completes, so two probes can never
 /// overlap and the cadence never tightens when a request is slow.
 ///
+/// The network-speed heartbeat ([SpeedHeartbeat]) is owned separately: it
+/// starts/stops with the "Display Network Speed" toggle and keeps running
+/// (driving the status-bar speed glyph) even when the probe loop is stopped -
+/// the two loops share this isolate but never gate each other.
+///
 /// Concurrency: a monotonic [_generation] counter invalidates any stale loop
 /// whenever the loop is restarted (new target, new interval, stop). Combined
 /// with the [_probeInFlight] guard this guarantees at most one probe in flight
@@ -442,29 +497,50 @@ class KeepAliveEngine {
   KeepAliveStats _stats = KeepAliveStats.empty;
 
   final NetworkSpeedMonitor _speedMonitor = NetworkSpeedMonitor();
-  Timer? _speedTicker;
+  SpeedHeartbeat? _speedHeartbeat;
 
   int _generation = 0;
-  bool _running = false;
+  bool _pingRunning = false;
   bool _probeInFlight = false;
 
   String? _lastNotifTitle;
   String? _lastNotifContent;
 
-  /// Restores the persisted config and decides whether to resume pinging. When
-  /// the OS restarted the service (reboot) but the user had stopped it, the
-  /// service is shut down immediately instead of resuming.
+  /// Whether the service isolate has anything to do: the ping loop, the
+  /// network-speed heartbeat, or both. When only the speed heartbeat is active
+  /// the service keeps running so the status-bar indicator stays live even
+  /// though no probes are being fired.
+  bool get _shouldHoldWakelock =>
+      (_pingRunning || _speedHeartbeat != null) && _config.keepWakelock;
+
+  /// Restores the persisted config and decides what to run. The ping loop
+  /// resumes only when the user had left it running (boot auto-restart). The
+  /// network-speed heartbeat is decoupled: it resumes whenever the toggle was
+  /// left ON, regardless of the ping loop state.
   Future<void> init() async {
     await AppPreferences.init();
     _config = AppPreferences.keepAliveConfig;
-    if (!AppPreferences.keepAliveAutoRestart) {
+    final pingEnabled = AppPreferences.keepAliveAutoRestart;
+    final speedEnabled = _config.showNetworkSpeed;
+    if (!pingEnabled && !speedEnabled) {
       await _service.stopSelf();
       return;
     }
-    // Balance the wake lock the plugin acquires at service start: Battery
-    // Saver releases it so Android may sleep the CPU and defer the loop.
-    await KeepAliveManager.setWakelock(_config.keepWakelock);
-    _startLoop();
+    if (speedEnabled) {
+      _startSpeedHeartbeat();
+      if (!pingEnabled) {
+        // Speed-only resume: keep the notification text honest so it does not
+        // claim probes are running.
+        _speedMonitor.updateContent(
+          title: 'NetKeep Active',
+          content: 'Network speed active',
+        );
+      }
+    }
+    if (pingEnabled) {
+      _startPingLoop();
+    }
+    await KeepAliveManager.setWakelock(_shouldHoldWakelock);
     _emitStatus();
   }
 
@@ -472,72 +548,101 @@ class KeepAliveEngine {
     if (patch == null || patch.isEmpty) return;
     _config = _config.merge(patch);
     _persistConfig();
-    _startSpeedTicker();
-    // Keep the wake lock in sync even when the change was applied directly to
-    // an already-running isolate.
-    KeepAliveManager.setWakelock(_config.keepWakelock);
-    if (_running) {
-      // Restart the loop so a new target/interval takes effect immediately;
-      // the generation bump makes any in-flight/stale loop exit after its
-      // current probe completes (see [_runLoop]).
-      _startLoop();
+    _syncSpeedHeartbeat();
+    KeepAliveManager.setWakelock(_shouldHoldWakelock);
+    if (_pingRunning) {
+      if (_patchAffectsPing(patch)) {
+        // Restart the loop so a new target/interval takes effect immediately;
+        // the generation bump makes any in-flight/stale loop exit after its
+        // current probe completes (see [_runLoop]).
+        _startPingLoop();
+      }
+      _emitStatus();
+    } else if (!_config.showNetworkSpeed) {
+      // Nothing left for this isolate to do (speed was turned off with no
+      // ping loop to keep alive).
+      _service.stopSelf();
+    } else {
       _emitStatus();
     }
   }
 
+  bool _patchAffectsPing(Map<dynamic, dynamic> patch) {
+    return patch.containsKey('targetUrl') ||
+        patch.containsKey('ispName') ||
+        patch.containsKey('intervalSeconds') ||
+        patch.containsKey('batterySaverEnabled');
+  }
+
   Future<void> stop() async {
-    if (!_running) {
-      _stopSpeedTicker();
-      await _speedMonitor.hideSpeedIcon();
-      await _service.stopSelf();
+    _pingRunning = false;
+    _generation++;
+    if (_config.showNetworkSpeed) {
+      // Speed indicator stays active: stop only the probe loop and keep the
+      // foreground service alive so the status-bar speed glyph keeps updating.
+      _emitStatus(running: false);
+      _emitProbe(
+        'Keep-Alive service stopped',
+        success: null,
+        latency: 0,
+      );
+      _speedMonitor.updateContent(
+        title: 'NetKeep Active',
+        content: 'Network speed active',
+      );
+      await KeepAliveManager.setWakelock(_shouldHoldWakelock);
       return;
     }
-    _running = false;
-    _generation++;
-    _stopSpeedTicker();
-    await _speedMonitor.hideSpeedIcon();
+    await _stopSpeedHeartbeat();
     _emitStatus(running: false);
     _emitProbe(
       'Keep-Alive service stopped',
       success: null,
       latency: 0,
     );
+    await KeepAliveManager.setWakelock(false);
     await _service.stopSelf();
   }
 
-  void _startSpeedTicker() {
-    _stopSpeedTicker();
-    if (!_running || !_config.showNetworkSpeed) {
-      _speedMonitor.hideSpeedIcon();
-      return;
+  void _startSpeedHeartbeat() {
+    final existing = _speedHeartbeat;
+    if (existing != null) {
+      // Re-point the heartbeat at a new primary target without restarting the
+      // ping loop; the toggle state itself is unchanged.
+      if (existing.targetUrl == _config.targetUrl) return;
+      existing.stop();
     }
-    _speedMonitor.reset();
-    _speedTicker = Timer.periodic(const Duration(seconds: 1), (_) async {
-      if (!_running || !_config.showNetworkSpeed) {
-        _stopSpeedTicker();
-        await _speedMonitor.hideSpeedIcon();
-        return;
-      }
-      final speeds = await _speedMonitor.sample();
-      if (speeds != null) {
-        _emitSpeed(speeds.$1, speeds.$2);
-      }
-    });
+    _speedHeartbeat = SpeedHeartbeat(targetUrl: _config.targetUrl)..start();
   }
 
-  void _stopSpeedTicker() {
-    _speedTicker?.cancel();
-    _speedTicker = null;
+  Future<void> _stopSpeedHeartbeat() async {
+    final heartbeat = _speedHeartbeat;
+    _speedHeartbeat = null;
+    if (heartbeat != null) {
+      await heartbeat.stop();
+    } else {
+      await _speedMonitor.hideSpeedIcon();
+    }
+  }
+
+  /// Starts or stops the network-speed heartbeat so it always mirrors the
+  /// "Display Network Speed" toggle, independent of the ping loop.
+  void _syncSpeedHeartbeat() {
+    if (_config.showNetworkSpeed) {
+      _startSpeedHeartbeat();
+    } else {
+      _stopSpeedHeartbeat();
+    }
   }
 
   /// (Re)starts the probe loop. Bumping the generation invalidates the old
   /// loop so a stale tick can never fire after a restart. Counters reset on
-  /// every explicit start.
-  void _startLoop() {
+  /// every explicit start. The network-speed heartbeat is deliberately NOT
+  /// touched here - it is owned by the speed toggle, not the ping loop.
+  void _startPingLoop() {
     final generation = ++_generation;
-    _running = true;
+    _pingRunning = true;
     _stats = KeepAliveStats.empty;
-    _startSpeedTicker();
     _runLoop(generation);
   }
 
@@ -546,7 +651,7 @@ class KeepAliveEngine {
   /// parallel, and exits as soon as the generation changes or the service is
   /// stopped.
   Future<void> _runLoop(int generation) async {
-    while (_running && generation == _generation) {
+    while (_pingRunning && generation == _generation) {
       if (_probeInFlight) {
         // A restart happened while a probe was still in flight from the
         // previous loop; wait for it to finish before probing again so probes
@@ -561,7 +666,7 @@ class KeepAliveEngine {
       } finally {
         _probeInFlight = false;
       }
-      if (!_running || generation != _generation) return;
+      if (!_pingRunning || generation != _generation) return;
 
       _stats = _stats.record(result);
       _emitProbe(
@@ -570,7 +675,7 @@ class KeepAliveEngine {
         latency: result.ok ? result.rttMs : 0,
       );
       await _updateNotification(result);
-      if (!_running || generation != _generation) return;
+      if (!_pingRunning || generation != _generation) return;
 
       final intervalSeconds = _config.intervalSeconds.clamp(1, 3600).toInt();
       await Future<void>.delayed(Duration(seconds: intervalSeconds));
@@ -640,7 +745,7 @@ class KeepAliveEngine {
   void _emitStatus({bool? running}) {
     _service.invoke('keepAliveEvent', <String, dynamic>{
       'type': 'status',
-      'running': running ?? _running,
+      'running': running ?? _pingRunning,
       'intervalSeconds': _config.intervalSeconds,
       'batterySaverEnabled': _config.batterySaverEnabled,
       'showNetworkSpeed': _config.showNetworkSpeed,
@@ -660,14 +765,6 @@ class KeepAliveEngine {
       'success': success ?? false,
       'latency': latency ?? 0,
       ..._stats.toMap(),
-    });
-  }
-
-  void _emitSpeed(int downloadBps, int uploadBps) {
-    _service.invoke('keepAliveEvent', <String, dynamic>{
-      'type': 'speed',
-      'downloadSpeed': downloadBps,
-      'uploadSpeed': uploadBps,
     });
   }
 

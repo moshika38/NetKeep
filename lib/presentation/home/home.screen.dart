@@ -40,8 +40,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _selectedIspUrl = AppPreferences.selectedIspUrl;
     _selectedIsp = _resolveIsp(_selectedIspUrl);
+    _restoreState();
+  }
+
+  Future<void> _restoreState() async {
+    await _loadConsoleLogs();
     _subscribeToEvents();
-    _checkServiceStatus();
+    await _checkServiceStatus();
   }
 
   @override
@@ -90,10 +95,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (mounted) {
       setState(() {
         if (isServiceRunning != wasRunning) {
-          _logs.insert(0, (
+          _insertLog(
             _formatTime(event.time, DateTime.now()),
             isServiceRunning ? 'Service started' : 'Service stopped',
-          ));
+          );
         }
       });
     }
@@ -121,11 +126,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         'avg ${stats.averageLatencyMs}ms';
   }
 
-  void _addLog(String message) {
+  /// Loads the persisted console history on launch. The "Clear Console"
+  /// toggle is honored: when it is enabled the history is wiped instead of
+  /// restored, so a fresh session starts with an empty console.
+  Future<void> _loadConsoleLogs() async {
+    if (AppPreferences.autoClearConsole) {
+      _logs.clear();
+      await AppPreferences.setConsoleLogs(_logs);
+      return;
+    }
+    final saved = await AppPreferences.getConsoleLogs();
+    if (mounted && saved.isNotEmpty) {
+      setState(() => _logs.addAll(saved));
+    }
+  }
+
+  /// Inserts a log entry at the top of the history (newest first) and persists
+  /// it so it survives app restarts. Older entries are pushed downwards; the
+  /// history is capped at [_maxLogEntries].
+  void _insertLog(String time, String message) {
     if (_logs.length >= _maxLogEntries) {
       _logs.removeLast();
     }
-    _logs.insert(0, (_formatTime(null, DateTime.now()), message));
+    _logs.insert(0, (time, message));
+    AppPreferences.setConsoleLogs(_logs);
+  }
+
+  void _addLog(String message) {
+    _insertLog(_formatTime(null, DateTime.now()), message);
     if (mounted) setState(() {});
   }
 
@@ -144,6 +172,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _checkServiceStatus() async {
     final running = await KeepAliveManager.isServiceRunning();
     if (mounted) setState(() => isServiceRunning = running);
+    // The speed toggle is authoritative: if it is ON but nothing is running
+    // (e.g. after an OS kill or a fresh process), re-establish the independent
+    // speed heartbeat without touching the Ping Service.
+    if (!running && _showNetworkSpeed) {
+      await _ensureSpeedIndicatorRunning();
+    }
+  }
+
+  Future<void>? _pendingSpeedStart;
+
+  Future<void> _ensureSpeedIndicatorRunning() async {
+    final pending = _pendingSpeedStart;
+    if (pending != null) {
+      await pending;
+      return;
+    }
+    final start = KeepAliveManager.setShowNetworkSpeedEnabled(true);
+    _pendingSpeedStart = start;
+    try {
+      await start;
+    } finally {
+      _pendingSpeedStart = null;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -156,6 +207,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         isServiceRunning = false;
       });
       await KeepAliveManager.stopService();
+      if (_showNetworkSpeed) {
+        // Re-assert the independent speed heartbeat after the ping loop tears
+        // down, so it keeps running regardless of the Ping Service state.
+        await KeepAliveManager.setShowNetworkSpeedEnabled(true);
+      }
       return;
     }
     final started = await KeepAliveManager.startService(
@@ -194,10 +250,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() {
       _showNetworkSpeed = value;
     });
-    await AppPreferences.setShowNetworkSpeed(value);
-    if (isServiceRunning) {
-      KeepAliveManager.updateShowNetworkSpeed(value);
-    }
+    // Decoupled from the Ping Service: starts/stops the independent speed
+    // heartbeat in the background isolate, whether or not ping is active.
+    await KeepAliveManager.setShowNetworkSpeedEnabled(value);
   }
 
   // ---------------------------------------------------------------------------

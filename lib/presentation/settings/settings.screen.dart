@@ -63,8 +63,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               subtitle: Text(
                 _autoClearConsole
-                    ? 'Clears logs when keep-alive stops'
-                    : 'Keeps logs after keep-alive stops',
+                    ? 'Clears the console log history on app launch'
+                    : 'Keeps console log history across app restarts',
               ),
             ),
           ),

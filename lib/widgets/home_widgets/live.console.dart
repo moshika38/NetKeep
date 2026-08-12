@@ -38,8 +38,10 @@ class LiveConsoleWidget extends StatelessWidget {
                   return _buildPromptLine();
                 }
 
-                final reversedIndex = _logs.length - index;
-                final log = _logs[reversedIndex];
+                // Logs are stored newest-first (index 0), so the newest entry
+                // is shown directly under the prompt and older entries are
+                // pushed downwards as new ones arrive.
+                final log = _logs[index - 1];
 
                 return _buildLogLine(log.$1, log.$2);
               },

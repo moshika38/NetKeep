@@ -17,8 +17,10 @@ class NetworkSpeedMonitor {
   static const MethodChannel _statsChannel = MethodChannel('netkeep/network_stats');
   static const MethodChannel _speedNotificationChannel = MethodChannel('netkeep/speed_notification');
 
-  /// Number of consecutive 1s samples averaged before a value is reported.
-  static const int _smoothingSamples = 4;
+  /// Number of consecutive samples averaged before a value is reported. Kept
+  /// short (sub-second sampling + continuously advancing counters) so the
+  /// status-bar readout tracks real-time throughput without visible lag.
+  static const int _smoothingSamples = 3;
 
   int? _lastRxBytes;
   int? _lastTxBytes;

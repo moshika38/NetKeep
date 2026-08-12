@@ -105,57 +105,72 @@ class _NetworkScreenState extends State<NetworkScreen>
       );
     }
     if (!_hasPermission) {
+      final availableHeight =
+          MediaQuery.of(context).size.height -
+          kToolbarHeight -
+          MediaQuery.of(context).padding.top -
+          MediaQuery.of(context).padding.bottom -
+          48;
       return Scaffold(
         appBar: const NetKeepAppBar(title: 'Network'),
-        body: Center(
-          child: Container(
-            height: MediaQuery.of(context).size.height * 0.2,
-            width: MediaQuery.of(context).size.width * 0.9,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.cardBgColor,
-              borderRadius: BorderRadius.circular(AppRadii.card),
-              border: Border.all(color: AppColors.borderColor),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: availableHeight),
+              child: Center(
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadii.tile),
-                    border: Border.all(
-                      color: AppColors.primaryColor.withValues(alpha: 0.35),
-                    ),
+                    color: AppColors.cardBgColor,
+                    borderRadius: BorderRadius.circular(AppRadii.card),
+                    border: Border.all(color: AppColors.borderColor),
                   ),
-                  child: const Icon(
-                    Icons.lock_outline,
-                    color: AppColors.primaryColor,
-                    size: 22,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadii.tile),
+                          border: Border.all(
+                            color: AppColors.primaryColor.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.lock_outline,
+                          color: AppColors.primaryColor,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        "Usage Access Permission Required",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await DataUsageService.requestPermission();
+                          _loadDataUsage();
+                        },
+                        icon: const Icon(Icons.lock_open, size: 18),
+                        label: const Text("Grant Permission"),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  "Usage Access Permission Required",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await DataUsageService.requestPermission();
-                    _loadDataUsage();
-                  },
-                  icon: const Icon(Icons.lock_open, size: 18),
-                  label: const Text("Grant Permission"),
-                ),
-              ],
+              ),
             ),
           ),
         ),
