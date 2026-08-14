@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 
 /// Classification of a failed probe, used to render distinct console output.
 enum PingErrorKind { none, timeout, dns, network, invalidUrl }
@@ -24,16 +25,16 @@ class PingResult {
     required this.rttMs,
     required this.targetUrl,
     this.viaFallback = false,
-  })  : ok = true,
-        errorKind = PingErrorKind.none;
+  }) : ok = true,
+       errorKind = PingErrorKind.none;
 
   const PingResult.failure({
     required this.errorKind,
     required this.rttMs,
     required this.targetUrl,
-  })  : ok = false,
-        statusCode = null,
-        viaFallback = false;
+  }) : ok = false,
+       statusCode = null,
+       viaFallback = false;
 
   /// True when the network itself is unreachable (as opposed to an HTTP-level
   /// response or a malformed target).
@@ -70,12 +71,31 @@ class PingClient {
 
   Dio? _dio;
 
-  Dio get _client => _dio ??= Dio(
-    BaseOptions(
-      connectTimeout: _connectTimeout,
-      validateStatus: (_) => true,
-    ),
-  );
+  Dio get _client => _dio ??= _buildClient();
+
+  Dio _buildClient() {
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: _connectTimeout,
+        sendTimeout: _connectTimeout,
+        receiveTimeout: _connectTimeout,
+        validateStatus: (_) => true,
+      ),
+    );
+    // Keep the underlying persistent connection alive longer than the
+    // `dart:io` default (3s) so consecutive probes can reuse the same socket
+    // across intervals up to 60s without a fresh TCP/TLS handshake. dart:io
+    // does not expose a raw SO_KEEPALIVE socket option; idleTimeout is the
+    // closest knob and directly controls socket lifetime/reuse.
+    dio.httpClientAdapter = IOHttpClientAdapter(
+      createHttpClient: () {
+        final client = HttpClient();
+        client.idleTimeout = const Duration(seconds: 60);
+        return client;
+      },
+    );
+    return dio;
+  }
 
   /// Runs a single HTTPS HEAD probe against [url] and returns a [PingResult].
   ///
@@ -87,7 +107,11 @@ class PingClient {
     try {
       final response = await _client.head<dynamic>(
         url,
-        options: Options(connectTimeout: effectiveTimeout),
+        options: Options(
+          connectTimeout: effectiveTimeout,
+          sendTimeout: effectiveTimeout,
+          receiveTimeout: effectiveTimeout,
+        ),
       );
       stopwatch.stop();
       return PingResult.success(

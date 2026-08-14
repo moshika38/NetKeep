@@ -13,7 +13,6 @@ class NetworkScreen extends StatefulWidget {
   State<NetworkScreen> createState() => _NetworkScreenState();
 }
 
-// 1. 'with WidgetsBindingObserver' එකතු කරන්න
 class _NetworkScreenState extends State<NetworkScreen>
     with WidgetsBindingObserver {
   bool _hasPermission = false;
@@ -26,19 +25,17 @@ class _NetworkScreenState extends State<NetworkScreen>
   @override
   void initState() {
     super.initState();
-    // 2. Lifecycle Observer එක Register කරන්න
     WidgetsBinding.instance.addObserver(this);
     _loadDataUsage();
   }
 
   @override
   void dispose() {
-    // 3. Screen එක අයින් වෙද්දී Observer එක Remove කරන්න
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  // 4. User Settings වලින් ආපසු App එකට ආපු ගමන් මේ Method එක Auto Run වෙනවා
+  // Reload usage data when returning from the system settings screen.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -98,64 +95,79 @@ class _NetworkScreenState extends State<NetworkScreen>
       return const Scaffold(
         appBar: NetKeepAppBar(title: 'Network'),
         body: Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primaryColor,  
-          ),
+          child: CircularProgressIndicator(color: AppColors.primaryColor),
         ),
       );
     }
     if (!_hasPermission) {
+      final availableHeight =
+          MediaQuery.of(context).size.height -
+          kToolbarHeight -
+          MediaQuery.of(context).padding.top -
+          MediaQuery.of(context).padding.bottom -
+          48;
       return Scaffold(
         appBar: const NetKeepAppBar(title: 'Network'),
-        body: Center(
-          child: Container(
-            height: MediaQuery.of(context).size.height * 0.2,
-            width: MediaQuery.of(context).size.width * 0.9,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.cardBgColor,
-              borderRadius: BorderRadius.circular(AppRadii.card),
-              border: Border.all(color: AppColors.borderColor),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: availableHeight),
+              child: Center(
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadii.tile),
-                    border: Border.all(
-                      color: AppColors.primaryColor.withValues(alpha: 0.35),
-                    ),
+                    color: AppColors.cardBgColor,
+                    borderRadius: BorderRadius.circular(AppRadii.card),
+                    border: Border.all(color: AppColors.borderColor),
                   ),
-                  child: const Icon(
-                    Icons.lock_outline,
-                    color: AppColors.primaryColor,
-                    size: 22,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadii.tile),
+                          border: Border.all(
+                            color: AppColors.primaryColor.withValues(
+                              alpha: 0.35,
+                            ),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.lock_outline,
+                          color: AppColors.primaryColor,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        "Usage Access Permission Required",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await DataUsageService.requestPermission();
+                          _loadDataUsage();
+                        },
+                        icon: const Icon(Icons.lock_open, size: 18),
+                        label: const Text("Grant Permission"),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  "Usage Access Permission Required",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await DataUsageService.requestPermission();
-                    _loadDataUsage();
-                  },
-                  icon: const Icon(Icons.lock_open, size: 18),
-                  label: const Text("Grant Permission"),
-                ),
-              ],
+              ),
             ),
           ),
         ),

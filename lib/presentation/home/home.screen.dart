@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/services/isp.config.dart';
 import 'package:netkeep/services/keep_alive_service.dart';
-import 'package:netkeep/services/network.speed.monitor.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
 import 'package:netkeep/widgets/home_widgets/isp.dropdown.dart';
@@ -27,8 +27,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final int _intervalSeconds = AppPreferences.pingIntervalSeconds;
   bool _batterySaver = AppPreferences.batterySaverEnabled;
   bool _showNetworkSpeed = AppPreferences.showNetworkSpeed;
-  int? _downloadBps;
-  int? _uploadBps;
   late String _selectedIspUrl;
   late IspConfig _selectedIsp;
   final List<(String, String)> _logs = [];
@@ -43,8 +41,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _selectedIspUrl = AppPreferences.selectedIspUrl;
     _selectedIsp = _resolveIsp(_selectedIspUrl);
+    _restoreState();
+  }
+
+  Future<void> _restoreState() async {
+    await _loadConsoleLogs();
     _subscribeToEvents();
-    _checkServiceStatus();
+    await _checkServiceStatus();
   }
 
   @override
@@ -81,9 +84,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case KeepAliveEventType.probe:
         _handleProbeEvent(event);
         break;
-      case KeepAliveEventType.speed:
-        _handleSpeedEvent(event);
-        break;
     }
   }
 
@@ -94,10 +94,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (mounted) {
       setState(() {
         if (isServiceRunning != wasRunning) {
-          _logs.insert(0, (
+          _insertLog(
             _formatTime(event.time, DateTime.now()),
             isServiceRunning ? 'Service started' : 'Service stopped',
-          ));
+          );
         }
       });
     }
@@ -110,14 +110,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       '${(event.message ?? '').replaceAll('Status: ', '')} '
       '| ${_formatTime(event.time, DateTime.now())}',
     );
-  }
-
-  void _handleSpeedEvent(KeepAliveEvent event) {
-    if (!_showNetworkSpeed || event.downloadSpeed == null) return;
-    setState(() {
-      _downloadBps = event.downloadSpeed;
-      _uploadBps = event.uploadSpeed;
-    });
   }
 
   String? _getStatsLine(KeepAliveStats? stats) {
@@ -133,11 +125,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         'avg ${stats.averageLatencyMs}ms';
   }
 
-  void _addLog(String message) {
+  /// Loads the persisted console history on launch. The "Clear Console"
+  /// toggle is honored: when it is enabled the history is wiped instead of
+  /// restored, so a fresh session starts with an empty console.
+  Future<void> _loadConsoleLogs() async {
+    if (AppPreferences.autoClearConsole) {
+      _logs.clear();
+      await AppPreferences.setConsoleLogs(_logs);
+      return;
+    }
+    final saved = await AppPreferences.getConsoleLogs();
+    if (mounted && saved.isNotEmpty) {
+      setState(() => _logs.addAll(saved));
+    }
+  }
+
+  /// Inserts a log entry at the top of the history (newest first) and persists
+  /// it so it survives app restarts. Older entries are pushed downwards; the
+  /// history is capped at [_maxLogEntries].
+  void _insertLog(String time, String message) {
     if (_logs.length >= _maxLogEntries) {
       _logs.removeLast();
     }
-    _logs.insert(0, (_formatTime(null, DateTime.now()), message));
+    _logs.insert(0, (time, message));
+    AppPreferences.setConsoleLogs(_logs);
+  }
+
+  void _addLog(String message) {
+    _insertLog(_formatTime(null, DateTime.now()), message);
     if (mounted) setState(() {});
   }
 
@@ -154,8 +169,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _checkServiceStatus() async {
-    final running = await KeepAliveManager.isServiceRunning();
-    if (mounted) setState(() => isServiceRunning = running);
+    final serviceRunning = await KeepAliveManager.isServiceRunning();
+    final pingRunning = serviceRunning && AppPreferences.keepAliveAutoRestart;
+    if (mounted) setState(() => isServiceRunning = pingRunning);
   }
 
   // ---------------------------------------------------------------------------
@@ -166,8 +182,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (isServiceRunning) {
       setState(() {
         isServiceRunning = false;
-        _downloadBps = null;
-        _uploadBps = null;
       });
       await KeepAliveManager.stopService();
       return;
@@ -207,15 +221,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _onShowNetworkSpeedChanged(bool value) async {
     setState(() {
       _showNetworkSpeed = value;
-      if (!value) {
-        _downloadBps = null;
-        _uploadBps = null;
-      }
     });
-    await AppPreferences.setShowNetworkSpeed(value);
-    if (isServiceRunning) {
-      KeepAliveManager.updateShowNetworkSpeed(value);
-    }
+    // Decoupled from the Ping Service: starts/stops the independent speed
+    // heartbeat in the background isolate, whether or not ping is active.
+    await KeepAliveManager.setShowNetworkSpeedEnabled(value);
   }
 
   // ---------------------------------------------------------------------------
@@ -266,15 +275,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     iconColor: AppColors.primaryColor,
                     title: 'Display Network Speed',
                     subtitle: _showNetworkSpeed
-                        ? 'Showing live download / upload speed'
+                        ? 'Showing speed in the system status bar'
                         : 'Speed measurement is paused',
                     value: _showNetworkSpeed,
                     onChanged: _onShowNetworkSpeedChanged,
                   ),
-                  if (_showNetworkSpeed && isServiceRunning) ...[
-                    const SizedBox(height: 12),
-                    _buildSpeedCard(),
-                  ],
                   const SizedBox(height: 24),
                   const SectionHeader(
                     title: 'Ping Information',
@@ -302,17 +307,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         color: AppColors.cardBgColor,
         borderRadius: BorderRadius.circular(AppRadii.card),
         border: Border.all(
-          color: statusColor.withValues(alpha: running ? 0.4 : 0.25),
+          color: statusColor.withValues(alpha: running ? 0.5 : 0.3),
+          width: running ? 1.5 : 1.0,
         ),
-        boxShadow: running
-            ? [
-                BoxShadow(
-                  color: statusColor.withValues(alpha: 0.07),
-                  blurRadius: 26,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : null,
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withValues(alpha: running ? 0.15 : 0.05),
+            blurRadius: 28,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -325,12 +329,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Row(
                   children: [
                     Text(
-                      running ? 'SERVICE ACTIVE' : 'SERVICE OFF',
-                      style: const TextStyle(
+                      running ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE',
+                      style: TextStyle(
                         color: AppColors.white,
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
+                        letterSpacing: 1.4,
+                        fontFamily: GoogleFonts.orbitron().fontFamily,
                       ),
                     ),
                     if (running) ...[
@@ -341,16 +346,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.secondaryColor.withValues(alpha: 0.14),
+                          color: AppColors.secondaryColor.withValues(
+                            alpha: 0.16,
+                          ),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
                             color: AppColors.secondaryColor.withValues(
-                              alpha: 0.4,
+                              alpha: 0.5,
                             ),
                           ),
                         ),
                         child: const Text(
-                          'LIVE',
+                          'LIVE PROBE',
                           style: TextStyle(
                             color: AppColors.secondaryColor,
                             fontSize: 9,
@@ -362,11 +369,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   running
-                      ? '${_selectedIsp.name} · every $_intervalSeconds seconds'
-                      : 'Start the service to begin keep-alive',
+                      ? '${_selectedIsp.name} · Probe every $_intervalSeconds s'
+                      : 'Initiate service to start low-latency probes',
                   style: const TextStyle(
                     color: AppColors.textColor,
                     fontSize: 12,
@@ -376,7 +383,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           _buildIconTile(
-            icon: running ? Icons.sync : Icons.power_settings_new,
+            icon: running ? Icons.sensors : Icons.power_settings_new,
             color: statusColor,
           ),
         ],
@@ -387,7 +394,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildServiceButton() {
     final running = isServiceRunning;
     final colors = running
-        ? const [AppColors.tertiaryColor, Color(0xFF9E241C)]
+        ? const [AppColors.tertiaryColor, Color(0xFFB00020)]
         : const [AppColors.primaryColor, AppColors.accentColor];
     return Material(
       color: Colors.transparent,
@@ -399,22 +406,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(AppRadii.button),
-          boxShadow: running
-              ? null
-              : [
-                  BoxShadow(
-                    color: AppColors.primaryColor.withValues(alpha: 0.28),
-                    blurRadius: 22,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+          boxShadow: [
+            BoxShadow(
+              color: (running ? AppColors.tertiaryColor : AppColors.primaryColor)
+                  .withValues(alpha: 0.4),
+              blurRadius: 24,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadii.button),
           onTap: _toggleService,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 15),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             alignment: Alignment.center,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -422,18 +428,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Icon(
                   running
                       ? Icons.stop_circle_outlined
-                      : Icons.play_circle_outline,
-                  color: Colors.white,
-                  size: 20,
+                      : Icons.bolt,
+                  color: running ? Colors.white : const Color(0xFF080B11),
+                  size: 22,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Text(
-                  running ? 'STOP SERVICE' : 'START SERVICE',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
+                  running ? 'HALT SERVICE' : 'ENGAGE KEEP-ALIVE',
+                  style: TextStyle(
+                    color: running ? Colors.white : const Color(0xFF080B11),
+                    fontWeight: FontWeight.w900,
                     fontSize: 14,
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.6,
+                    fontFamily: GoogleFonts.orbitron().fontFamily,
                   ),
                 ),
               ],
@@ -479,78 +486,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildSpeedCard() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18),
-      decoration: BoxDecoration(
-        color: AppColors.cardAltColor,
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        border: Border.all(color: AppColors.borderColor),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _speedColumn(
-              icon: Icons.arrow_downward,
-              iconColor: AppColors.primaryColor,
-              label: 'Download',
-              bps: _downloadBps,
-              formatter: NetworkSpeedMonitor.formatDownload,
-            ),
-          ),
-          Container(width: 1, height: 48, color: AppColors.borderColor),
-          Expanded(
-            child: _speedColumn(
-              icon: Icons.arrow_upward,
-              iconColor: AppColors.accentColor,
-              label: 'Upload',
-              bps: _uploadBps,
-              formatter: NetworkSpeedMonitor.formatUpload,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _speedColumn({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required int? bps,
-    required String Function(int) formatter,
-  }) {
-    return Column(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(AppRadii.tile),
-            border: Border.all(color: iconColor.withValues(alpha: 0.3)),
-          ),
-          child: Icon(icon, size: 18, color: iconColor),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(color: AppColors.textColor, fontSize: 11),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          bps == null ? '--' : formatter(bps),
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildIconTile({required IconData icon, required Color color}) {
     return Container(
       width: 42,
@@ -580,9 +515,10 @@ class _PulseDotState extends State<_PulseDot>
     vsync: this,
     duration: const Duration(milliseconds: 1100),
   )..repeat(reverse: true);
-  late final Animation<double> _scale = Tween(begin: 0.85, end: 1.6).animate(
-    CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _scale = Tween(
+    begin: 0.85,
+    end: 1.6,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
   @override
   void dispose() {

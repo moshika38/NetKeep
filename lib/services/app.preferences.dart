@@ -15,6 +15,7 @@ class AppPreferences {
 
   static const String _keepAliveAutoRestartKey = 'keep_alive_auto_restart';
   static const String _keepAliveConfigKey = 'keep_alive_config';
+  static const String _consoleLogsKey = 'console_logs';
 
   static bool _autoClearConsole = _autoClearConsoleDefault;
   static String _selectedIspUrl = defaultIspUrl;
@@ -90,6 +91,33 @@ class AppPreferences {
     _autoClearConsole = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_autoClearConsoleKey, value);
+  }
+
+  /// Persisted console log history (newest entry first), so entries survive
+  /// app restarts when the "Clear Console" toggle is disabled.
+  static Future<List<(String, String)>> getConsoleLogs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_consoleLogsKey);
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final decoded = jsonDecode(raw) as List;
+      return decoded.map((entry) {
+        final pair = (entry as List).cast<String>();
+        return (pair[0], pair[1]);
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> setConsoleLogs(List<(String, String)> logs) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _consoleLogsKey,
+      jsonEncode([
+        for (final (time, message) in logs) [time, message],
+      ]),
+    );
   }
 
   static bool get showNetworkSpeed => _showNetworkSpeed;

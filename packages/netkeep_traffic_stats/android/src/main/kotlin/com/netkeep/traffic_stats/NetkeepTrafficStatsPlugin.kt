@@ -52,6 +52,13 @@ class NetkeepTrafficStatsPlugin : FlutterPlugin, MethodChannel.MethodCallHandler
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
+            "getTrafficBytes" -> {
+                val rxBytes = TrafficStats.getTotalRxBytes()
+                val txBytes = TrafficStats.getTotalTxBytes()
+                val rx = if (rxBytes == TrafficStats.UNSUPPORTED.toLong()) 0L else rxBytes
+                val tx = if (txBytes == TrafficStats.UNSUPPORTED.toLong()) 0L else txBytes
+                result.success(listOf(rx, tx))
+            }
             "getRxBytes" -> {
                 val rxBytes = TrafficStats.getTotalRxBytes()
                 result.success(if (rxBytes == TrafficStats.UNSUPPORTED.toLong()) 0L else rxBytes)
