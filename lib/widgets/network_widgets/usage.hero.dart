@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:netkeep/utils/theme.dart';
 
 class UsageHero extends StatelessWidget {
@@ -25,20 +26,19 @@ class UsageHero extends StatelessWidget {
       margin: EdgeInsets.zero,
       color: AppColors.cardAltColor,
       child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          gradient: const LinearGradient(
             colors: [
-              Color(0x33FF7A1A),
-              Color(0x11FFB84D),
+              Color(0x2200F0FF),
+              Color(0x117000FF),
               Colors.transparent,
             ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: [0.0, 0.25, 1.0],
+            stops: [0.0, 0.35, 1.0],
           ),
-          border: Border(
-            top: BorderSide(color: AppColors.primaryColor, width: 3),
-          ),
+          border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.3)),
         ),
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -47,44 +47,60 @@ class UsageHero extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  "DATA USED",
+                  "TOTAL DATA TRAFFIC",
                   style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                    color: AppColors.white.withValues(alpha: 0.75),
-                    letterSpacing: 1.2,
+                    color: AppColors.white.withValues(alpha: 0.85),
+                    letterSpacing: 1.4,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  "${(progress * 100).round()}%",
-                  style: const TextStyle(
-                    color: AppColors.primaryColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.4)),
+                  ),
+                  child: Text(
+                    "${(progress * 100).round()}% CAP",
+                    style: const TextStyle(
+                      color: AppColors.primaryColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
                 Text(
                   amount,
-                  style: const TextStyle(
-                    fontSize: 44,
+                  style: TextStyle(
+                    fontSize: 42,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                    fontFamily: GoogleFonts.orbitron().fontFamily,
+                    color: AppColors.white,
                     height: 1.0,
+                    letterSpacing: 1.0,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
                     unit,
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    style: TextStyle(
+                      color: AppColors.primaryColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      fontFamily: GoogleFonts.orbitron().fontFamily,
+                    ),
                   ),
                 ),
               ],
@@ -92,12 +108,15 @@ class UsageHero extends StatelessWidget {
             const SizedBox(height: 6),
             Text(caption, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 16),
-            LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: Colors.white10,
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                AppColors.primaryColor,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 8,
+                backgroundColor: Colors.white10,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.primaryColor,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -109,7 +128,7 @@ class UsageHero extends StatelessWidget {
                     icon: Icons.arrow_downward,
                     color: AppColors.primaryColor,
                     value: download,
-                    label: "Download",
+                    label: "Mobile Data",
                   ),
                 ),
                 Container(width: 1, height: 32, color: AppColors.borderColor),
@@ -117,9 +136,9 @@ class UsageHero extends StatelessWidget {
                   child: _buildStat(
                     context,
                     icon: Icons.arrow_upward,
-                    color: AppColors.accentColor,
+                    color: AppColors.secondaryColor,
                     value: upload,
-                    label: "Upload",
+                    label: "Wi-Fi Data",
                   ),
                 ),
               ],

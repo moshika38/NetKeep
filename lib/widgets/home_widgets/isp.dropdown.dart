@@ -26,25 +26,33 @@ class IspDropdown extends StatelessWidget {
       onTap: () => _showPicker(context),
       borderRadius: BorderRadius.circular(AppRadii.control),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: AppColors.cardBgColor,
           borderRadius: BorderRadius.circular(AppRadii.control),
-          border: Border.all(color: AppColors.borderColor),
+          border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.4)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryColor.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 28,
-              height: 28,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
-                color: AppColors.primaryColor.withValues(alpha: 0.12),
+                color: AppColors.primaryColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.4)),
               ),
               child: const Icon(
-                Icons.public,
-                size: 15,
+                Icons.language,
+                size: 16,
                 color: AppColors.primaryColor,
               ),
             ),
@@ -54,13 +62,14 @@ class IspDropdown extends StatelessWidget {
                   ? '${selected.name} (Recommended)'
                   : selected.name,
               style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.white,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
               ),
             ),
-            const SizedBox(width: 6),
-            const Icon(Icons.expand_more, size: 18, color: AppColors.textColor),
+            const SizedBox(width: 8),
+            const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.primaryColor),
           ],
         ),
       ),
@@ -70,6 +79,11 @@ class IspDropdown extends StatelessWidget {
   void _showPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: AppColors.backgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: AppColors.borderColor),
+      ),
       builder: (sheetContext) {
         return SafeArea(
           child: Column(
@@ -77,11 +91,19 @@ class IspDropdown extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(18),
-                child: Text(
-                  'SELECT ISP',
-                  style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                    letterSpacing: 1.0,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.tune, size: 16, color: AppColors.primaryColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      'SELECT CONNECTION TARGET',
+                      style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                        letterSpacing: 1.2,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               for (var i = 0; i < supportedIsps.length; i++)
@@ -89,8 +111,8 @@ class IspDropdown extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Material(
                     color: supportedIsps[i].url == selectedUrl
-                        ? AppColors.primaryColor.withValues(alpha: 0.1)
-                        : AppColors.cardAltColor,
+                        ? AppColors.primaryColor.withValues(alpha: 0.15)
+                        : AppColors.cardBgColor,
                     borderRadius: BorderRadius.circular(AppRadii.tile),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(AppRadii.tile),
@@ -103,14 +125,14 @@ class IspDropdown extends StatelessWidget {
                           borderRadius: BorderRadius.circular(AppRadii.tile),
                           border: Border.all(
                             color: supportedIsps[i].url == selectedUrl
-                                ? AppColors.primaryColor.withValues(alpha: 0.7)
+                                ? AppColors.primaryColor
                                 : AppColors.borderColor,
                             width: supportedIsps[i].url == selectedUrl ? 1.5 : 1,
                           ),
                         ),
                         child: ListTile(
                           leading: Icon(
-                            Icons.public,
+                            Icons.radar,
                             color: supportedIsps[i].url == selectedUrl
                                 ? AppColors.primaryColor
                                 : AppColors.textColor,
@@ -123,7 +145,7 @@ class IspDropdown extends StatelessWidget {
                               color: supportedIsps[i].url == selectedUrl
                                   ? AppColors.white
                                   : AppColors.textColor,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           trailing: supportedIsps[i].url == selectedUrl
@@ -138,7 +160,7 @@ class IspDropdown extends StatelessWidget {
                     ),
                   ),
                 ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
             ],
           ),
         );

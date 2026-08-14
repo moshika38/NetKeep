@@ -7,35 +7,37 @@ import 'package:google_fonts/google_fonts.dart';
 /// brackets) but the harsh all-square cyan scheme is replaced with layered
 /// warm-black surfaces, a vivid orange primary and rounded geometry so it
 /// reads as a polished tool instead of a debug console.
+/// Cyberpunk / High-Tech Cyber dark palette with HUD styling.
 class AppColors {
-  // Surfaces - deep, slightly warm near-black.
-  static const Color backgroundColor = Color(0xFF0D0B09);
-  static const Color cardBgColor = Color(0xFF151210);
-  static const Color cardAltColor = Color(0xFF1C1815);
+  // Surfaces - deep cyber obsidian & matrix dark navy.
+  static const Color backgroundColor = Color(0xFF080B11);
+  static const Color cardBgColor = Color(0xFF0F1420);
+  static const Color cardAltColor = Color(0xFF141B2D);
 
-  // Brand - orange primary, amber accent.
-  static const Color primaryColor = Color(0xFFFF7A1A);
-  static const Color accentColor = Color(0xFFFFB84D);
-  static const Color glowColor = Color(0xFFFF8A2E);
+  // Brand - Cyber Electric Cyan & Laser Violet.
+  static const Color primaryColor = Color(0xFF00F0FF);
+  static const Color accentColor = Color(0xFF7000FF);
+  static const Color glowColor = Color(0xFF00D2FF);
 
-  // Semantic states.
-  static const Color secondaryColor = Color(0xFF4ADE80);
-  static const Color tertiaryColor = Color(0xFFFF5A5F);
+  // Semantic states - Neon Emerald Green & Crimson Red.
+  static const Color secondaryColor = Color(0xFF00FFA3);
+  static const Color tertiaryColor = Color(0xFFFF2A6D);
+  static const Color warningColor = Color(0xFFFFB800);
 
   // Text & chrome.
-  static const Color white = Color(0xFFFBF5EE);
-  static const Color textColor = Color(0xFFA9A09A);
-  static const Color iconColor = Color(0xFFFF8C38);
-  static const Color borderColor = Color(0x1FFFFFFF);
+  static const Color white = Color(0xFFF0F6FC);
+  static const Color textColor = Color(0xFF8B949E);
+  static const Color iconColor = Color(0xFF00F0FF);
+  static const Color borderColor = Color(0x3300F0FF);
 }
 
 /// Shared corner radii so every screen is consistent.
 class AppRadii {
-  static const double card = 18;
-  static const double control = 14;
-  static const double tile = 12;
-  static const double chip = 10;
-  static const double button = 14;
+  static const double card = 16;
+  static const double control = 12;
+  static const double tile = 10;
+  static const double chip = 8;
+  static const double button = 12;
 }
 
 class AppTheme {
@@ -55,18 +57,18 @@ class AppTheme {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadii.card),
-        side: BorderSide(color: AppColors.borderColor),
+        side: const BorderSide(color: AppColors.borderColor),
       ),
     ),
     appBarTheme: AppBarTheme(
-      backgroundColor: AppColors.backgroundColor.withValues(alpha: 0.88),
+      backgroundColor: AppColors.backgroundColor.withValues(alpha: 0.92),
       elevation: 0,
       centerTitle: false,
       shape: const Border(
         bottom: BorderSide(color: AppColors.borderColor, width: 1),
       ),
       scrolledUnderElevation: 0,
-      iconTheme: const IconThemeData(color: AppColors.textColor),
+      iconTheme: const IconThemeData(color: AppColors.primaryColor),
     ),
     dividerTheme:
         const DividerThemeData(color: AppColors.borderColor, thickness: 1),
@@ -82,13 +84,15 @@ class AppTheme {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
+        backgroundColor: AppColors.primaryColor,
+        foregroundColor: const Color(0xFF080B11),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.button),
         ),
-        textStyle: const TextStyle(
+        textStyle: GoogleFonts.orbitron(
           fontSize: 14,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.8,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
         ),
       ),
     ),
@@ -100,7 +104,7 @@ class AppTheme {
       ),
       trackColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
-            ? AppColors.primaryColor.withValues(alpha: 0.35)
+            ? AppColors.primaryColor.withValues(alpha: 0.3)
             : Colors.white12,
       ),
       trackOutlineColor: WidgetStateProperty.resolveWith((states) => null),
@@ -108,19 +112,21 @@ class AppTheme {
     chipTheme: ChipThemeData(
       backgroundColor: AppColors.cardBgColor,
       selectedColor: AppColors.primaryColor.withValues(alpha: 0.16),
-      side: BorderSide(color: AppColors.borderColor),
+      side: const BorderSide(color: AppColors.borderColor),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadii.chip),
       ),
-      labelStyle: const TextStyle(
+      labelStyle: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w600,
         color: AppColors.textColor,
+        fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
       ),
-      secondaryLabelStyle: const TextStyle(
+      secondaryLabelStyle: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w700,
         color: AppColors.primaryColor,
+        fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
       ),
       showCheckmark: false,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -135,13 +141,16 @@ class AppTheme {
       backgroundColor: AppColors.cardBgColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadii.card),
-        side: BorderSide(color: AppColors.borderColor),
+        side: const BorderSide(color: AppColors.borderColor),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: AppColors.cardBgColor,
-      indicatorColor: AppColors.primaryColor.withValues(alpha: 0.16),
-      indicatorShape: const StadiumBorder(),
+      indicatorColor: AppColors.primaryColor.withValues(alpha: 0.18),
+      indicatorShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: AppColors.primaryColor.withValues(alpha: 0.3)),
+      ),
       height: 68,
       iconTheme: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
@@ -155,40 +164,44 @@ class AppTheme {
         return TextStyle(
           fontSize: 10,
           fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-          letterSpacing: 1.4,
+          letterSpacing: 1.6,
+          fontFamily: GoogleFonts.orbitron().fontFamily,
           color: selected ? AppColors.primaryColor : AppColors.textColor,
         );
       }),
     ),
     textTheme: TextTheme(
-      titleLarge: const TextStyle(
-        fontSize: 20,
+      titleLarge: GoogleFonts.orbitron(
+        fontSize: 18,
         fontWeight: FontWeight.w800,
-        letterSpacing: 0.4,
+        letterSpacing: 0.8,
         color: AppColors.white,
       ),
-      titleMedium: const TextStyle(
-        fontSize: 15,
+      titleMedium: GoogleFonts.orbitron(
+        fontSize: 14,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.6,
         color: AppColors.white,
       ),
-      bodyMedium: const TextStyle(
+      bodyMedium: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w500,
         height: 1.5,
+        fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
         color: AppColors.textColor,
       ),
-      bodySmall: const TextStyle(
+      bodySmall: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w400,
         height: 1.4,
+        fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
         color: AppColors.textColor,
       ),
-      labelSmall: const TextStyle(
+      labelSmall: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w600,
-        letterSpacing: 0.3,
+        letterSpacing: 0.5,
+        fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
         color: AppColors.textColor,
       ),
     ),

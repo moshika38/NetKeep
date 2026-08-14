@@ -32,12 +32,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           const SectionHeader(
-            title: 'Notifications',
-            subtitle: 'Manage app alerts',
-          ),
-          const SizedBox(height: 12),
-          const SizedBox(height: 28),
-          const SectionHeader(
             title: 'Console',
             subtitle: 'Live console behavior',
           ),
@@ -200,14 +194,20 @@ class _TileIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 40,
-      height: 40,
+      width: 38,
+      height: 38,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(AppRadii.tile),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.1),
+            blurRadius: 8,
+          ),
+        ],
       ),
-      child: Icon(icon, color: color, size: 20),
+      child: Icon(icon, color: color, size: 18),
     );
   }
 }
@@ -220,7 +220,7 @@ class _TileTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      style: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w700),
     );
   }
 }

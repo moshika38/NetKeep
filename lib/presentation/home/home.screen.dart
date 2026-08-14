@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/services/isp.config.dart';
 import 'package:netkeep/services/keep_alive_service.dart';
@@ -305,17 +306,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         color: AppColors.cardBgColor,
         borderRadius: BorderRadius.circular(AppRadii.card),
         border: Border.all(
-          color: statusColor.withValues(alpha: running ? 0.4 : 0.25),
+          color: statusColor.withValues(alpha: running ? 0.5 : 0.3),
+          width: running ? 1.5 : 1.0,
         ),
-        boxShadow: running
-            ? [
-                BoxShadow(
-                  color: statusColor.withValues(alpha: 0.07),
-                  blurRadius: 26,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : null,
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withValues(alpha: running ? 0.15 : 0.05),
+            blurRadius: 28,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -328,12 +328,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Row(
                   children: [
                     Text(
-                      running ? 'SERVICE ACTIVE' : 'SERVICE OFF',
-                      style: const TextStyle(
+                      running ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE',
+                      style: TextStyle(
                         color: AppColors.white,
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
+                        letterSpacing: 1.4,
+                        fontFamily: GoogleFonts.orbitron().fontFamily,
                       ),
                     ),
                     if (running) ...[
@@ -345,17 +346,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.secondaryColor.withValues(
-                            alpha: 0.14,
+                            alpha: 0.16,
                           ),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
                             color: AppColors.secondaryColor.withValues(
-                              alpha: 0.4,
+                              alpha: 0.5,
                             ),
                           ),
                         ),
                         child: const Text(
-                          'LIVE',
+                          'LIVE PROBE',
                           style: TextStyle(
                             color: AppColors.secondaryColor,
                             fontSize: 9,
@@ -367,11 +368,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   running
-                      ? '${_selectedIsp.name} · every $_intervalSeconds seconds'
-                      : 'Start the service to begin keep-alive',
+                      ? '${_selectedIsp.name} · Probe every $_intervalSeconds s'
+                      : 'Initiate service to start low-latency probes',
                   style: const TextStyle(
                     color: AppColors.textColor,
                     fontSize: 12,
@@ -381,7 +382,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           _buildIconTile(
-            icon: running ? Icons.sync : Icons.power_settings_new,
+            icon: running ? Icons.sensors : Icons.power_settings_new,
             color: statusColor,
           ),
         ],
@@ -392,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildServiceButton() {
     final running = isServiceRunning;
     final colors = running
-        ? const [AppColors.tertiaryColor, Color(0xFF9E241C)]
+        ? const [AppColors.tertiaryColor, Color(0xFFB00020)]
         : const [AppColors.primaryColor, AppColors.accentColor];
     return Material(
       color: Colors.transparent,
@@ -404,22 +405,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(AppRadii.button),
-          boxShadow: running
-              ? null
-              : [
-                  BoxShadow(
-                    color: AppColors.primaryColor.withValues(alpha: 0.28),
-                    blurRadius: 22,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+          boxShadow: [
+            BoxShadow(
+              color: (running ? AppColors.tertiaryColor : AppColors.primaryColor)
+                  .withValues(alpha: 0.4),
+              blurRadius: 24,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadii.button),
           onTap: _toggleService,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 15),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             alignment: Alignment.center,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -427,18 +427,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Icon(
                   running
                       ? Icons.stop_circle_outlined
-                      : Icons.play_circle_outline,
-                  color: Colors.white,
-                  size: 20,
+                      : Icons.bolt,
+                  color: running ? Colors.white : const Color(0xFF080B11),
+                  size: 22,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Text(
-                  running ? 'STOP SERVICE' : 'START SERVICE',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
+                  running ? 'HALT SERVICE' : 'ENGAGE KEEP-ALIVE',
+                  style: TextStyle(
+                    color: running ? Colors.white : const Color(0xFF080B11),
+                    fontWeight: FontWeight.w900,
                     fontSize: 14,
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.6,
+                    fontFamily: GoogleFonts.orbitron().fontFamily,
                   ),
                 ),
               ],

@@ -17,8 +17,8 @@ class NetKeepAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: Row(
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [AppColors.primaryColor, AppColors.accentColor],
@@ -28,30 +28,30 @@ class NetKeepAppBar extends StatelessWidget implements PreferredSizeWidget {
               borderRadius: BorderRadius.circular(AppRadii.tile),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primaryColor.withValues(alpha: 0.35),
-                  blurRadius: 12,
-                  offset: const Offset(0, 3),
+                  color: AppColors.primaryColor.withValues(alpha: 0.5),
+                  blurRadius: 14,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: const Icon(Icons.wifi, size: 18, color: Color(0xFF1A1108)),
+            child: const Icon(Icons.bolt, size: 20, color: Color(0xFF080B11)),
           ),
           const SizedBox(width: 12),
           Text.rich(
             TextSpan(
               children: [
-                TextSpan(
-                  text: '> ',
+                const TextSpan(
+                  text: '⚡ ',
                   style: TextStyle(
-                    color: AppColors.accentColor,
-                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryColor,
+                    fontSize: 14,
                   ),
                 ),
                 TextSpan(
                   text: title.toUpperCase(),
                   style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                    fontSize: 17,
-                    letterSpacing: 1.2,
+                    fontSize: 16,
+                    letterSpacing: 1.5,
                   ),
                 ),
               ],

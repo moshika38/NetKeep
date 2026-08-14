@@ -23,19 +23,19 @@ class AppBackground extends StatelessWidget {
 class _GridPainter extends CustomPainter {
   const _GridPainter();
 
-  static const double _spacing = 18;
+  static const double _spacing = 20;
   static const int _majorEvery = 4;
 
   @override
   void paint(Canvas canvas, Size size) {
+    _paintBackground(canvas, size);
     _paintGlow(canvas, size);
-    _paintCheckerboard(canvas, size);
 
     final minor = Paint()
-      ..color = AppColors.primaryColor.withValues(alpha: 0.025)
+      ..color = AppColors.primaryColor.withValues(alpha: 0.03)
       ..strokeWidth = 0.5;
     final major = Paint()
-      ..color = AppColors.primaryColor.withValues(alpha: 0.05)
+      ..color = AppColors.primaryColor.withValues(alpha: 0.08)
       ..strokeWidth = 1;
 
     for (var i = 0; i * _spacing <= size.width; i++) {
@@ -52,62 +52,55 @@ class _GridPainter extends CustomPainter {
     _paintCornerBrackets(canvas, size);
   }
 
-  /// Alternating check cells at a very low alpha - a quiet "tech" checkerboard
-  /// that reads as texture rather than noise.
-  void _paintCheckerboard(Canvas canvas, Size size) {
-    final fill = Paint()
-      ..color = AppColors.primaryColor.withValues(alpha: 0.028);
-
-    for (var row = 0; row * _spacing <= size.height; row++) {
-      for (var col = 0; col * _spacing <= size.width; col++) {
-        // Alternate like a chessboard; also brighten cells that sit at a
-        // major grid intersection for a subtle depth boost.
-        final isMajor = (row % _majorEvery == 0) || (col % _majorEvery == 0);
-        if ((row + col).isEven) {
-          fill.color = AppColors.primaryColor.withValues(
-            alpha: isMajor ? 0.05 : 0.028,
-          );
-          canvas.drawRect(
-            Rect.fromLTWH(
-              col * _spacing,
-              row * _spacing,
-              _spacing,
-              _spacing,
-            ),
-            fill,
-          );
-        }
-      }
-    }
+  void _paintBackground(Canvas canvas, Size size) {
+    final bgPaint = Paint()..color = AppColors.backgroundColor;
+    canvas.drawRect(Offset.zero & size, bgPaint);
   }
 
   void _paintGlow(Canvas canvas, Size size) {
-    final glow = Paint()
+    final cyanGlow = Paint()
       ..shader = RadialGradient(
         colors: [
-          AppColors.primaryColor.withValues(alpha: 0.09),
+          AppColors.primaryColor.withValues(alpha: 0.12),
           AppColors.primaryColor.withValues(alpha: 0.04),
           Colors.transparent,
         ],
-        radius: 0.75,
+        radius: 0.85,
         stops: const [0.0, 0.45, 1.0],
       ).createShader(
         Rect.fromCircle(
-          center: Offset(size.width / 2, -size.height * 0.15),
-          radius: size.height,
+          center: Offset(size.width * 0.3, -size.height * 0.1),
+          radius: size.height * 0.8,
         ),
       );
-    canvas.drawRect(Offset.zero & size, glow);
+    canvas.drawRect(Offset.zero & size, cyanGlow);
+
+    final purpleGlow = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          AppColors.accentColor.withValues(alpha: 0.1),
+          AppColors.accentColor.withValues(alpha: 0.02),
+          Colors.transparent,
+        ],
+        radius: 0.9,
+        stops: const [0.0, 0.5, 1.0],
+      ).createShader(
+        Rect.fromCircle(
+          center: Offset(size.width * 0.8, size.height * 0.6),
+          radius: size.height * 0.7,
+        ),
+      );
+    canvas.drawRect(Offset.zero & size, purpleGlow);
   }
 
   void _paintCornerBrackets(Canvas canvas, Size size) {
     final bracket = Paint()
-      ..color = AppColors.primaryColor.withValues(alpha: 0.16)
-      ..strokeWidth = 2
+      ..color = AppColors.primaryColor.withValues(alpha: 0.35)
+      ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
-    const inset = 14.0;
-    const length = 24.0;
+    const inset = 12.0;
+    const length = 20.0;
 
     canvas.drawPath(
       Path()
