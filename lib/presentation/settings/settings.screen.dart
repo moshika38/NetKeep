@@ -151,9 +151,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     future: AppInfoService.getAppVersion(),
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
-                        return Text(snapshot.data!);
+                        return Text(
+                          snapshot.data!,
+                          style: const TextStyle(color: AppColors.white),
+                        );
                       }
-                      return const Text('v1.0.0');
+                      return const Text(
+                        'v1.0.1+2',
+                        style: TextStyle(color: AppColors.textColor),
+                      );
                     },
                   ),
                 ),
