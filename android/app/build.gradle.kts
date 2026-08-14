@@ -30,6 +30,17 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+
+            // R8 / ProGuard code shrinking.
+            // Keep rules are defined in proguard-rules.pro to preserve
+            // WorkManager, Room, AndroidX Startup, AdMob and Flutter classes
+            // that are loaded via reflection.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
