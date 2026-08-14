@@ -130,31 +130,34 @@ class IspDropdown extends StatelessWidget {
                             width: supportedIsps[i].url == selectedUrl ? 1.5 : 1,
                           ),
                         ),
-                        child: ListTile(
-                          leading: Icon(
-                            Icons.radar,
-                            color: supportedIsps[i].url == selectedUrl
-                                ? AppColors.primaryColor
-                                : AppColors.textColor,
-                          ),
-                          title: Text(
-                            supportedIsps[i].isRecommended
-                                ? '${supportedIsps[i].name} (Recommended)'
-                                : supportedIsps[i].name,
-                            style: TextStyle(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.radar,
                               color: supportedIsps[i].url == selectedUrl
-                                  ? AppColors.white
+                                  ? AppColors.primaryColor
                                   : AppColors.textColor,
-                              fontWeight: FontWeight.w700,
                             ),
+                            title: Text(
+                              supportedIsps[i].isRecommended
+                                  ? '${supportedIsps[i].name} (Recommended)'
+                                  : supportedIsps[i].name,
+                              style: TextStyle(
+                                color: supportedIsps[i].url == selectedUrl
+                                    ? AppColors.white
+                                    : AppColors.textColor,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            trailing: supportedIsps[i].url == selectedUrl
+                                ? const Icon(
+                                    Icons.check_circle,
+                                    color: AppColors.primaryColor,
+                                    size: 20,
+                                  )
+                                : null,
                           ),
-                          trailing: supportedIsps[i].url == selectedUrl
-                              ? const Icon(
-                                  Icons.check_circle,
-                                  color: AppColors.primaryColor,
-                                  size: 20,
-                                )
-                              : null,
                         ),
                       ),
                     ),

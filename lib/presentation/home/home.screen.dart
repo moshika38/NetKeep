@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:netkeep/services/ad_manager.dart';
 import 'package:netkeep/services/app.preferences.dart';
 import 'package:netkeep/services/isp.config.dart';
 import 'package:netkeep/services/keep_alive_service.dart';
@@ -184,6 +185,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         isServiceRunning = false;
       });
       await KeepAliveManager.stopService();
+      AdManager.instance.showAdIfReady();
       return;
     }
     final started = await KeepAliveManager.startService(
@@ -216,6 +218,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (isServiceRunning) {
       KeepAliveManager.updateBatterySaver(value);
     }
+    if (value) {
+      AdManager.instance.showAdIfReady();
+    }
   }
 
   Future<void> _onShowNetworkSpeedChanged(bool value) async {
@@ -225,6 +230,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Decoupled from the Ping Service: starts/stops the independent speed
     // heartbeat in the background isolate, whether or not ping is active.
     await KeepAliveManager.setShowNetworkSpeedEnabled(value);
+    if (value) {
+      AdManager.instance.showAdIfReady();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -465,22 +473,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(AppRadii.card),
         border: Border.all(color: AppColors.borderColor),
       ),
-      child: SwitchListTile(
-        value: value,
-        onChanged: onChanged,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        secondary: _buildIconTile(icon: icon, color: iconColor),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: AppColors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
+      child: Material(
+        color: Colors.transparent,
+        child: SwitchListTile(
+          value: value,
+          onChanged: onChanged,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          secondary: _buildIconTile(icon: icon, color: iconColor),
+          title: Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
           ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(color: AppColors.textColor, fontSize: 12),
+          subtitle: Text(
+            subtitle,
+            style: const TextStyle(
+              color: AppColors.textColor,
+              fontSize: 12,
+            ),
+          ),
         ),
       ),
     );

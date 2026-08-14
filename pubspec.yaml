@@ -19,6 +19,8 @@ dependencies:
   google_fonts: ^8.2.1
   rename_app: ^1.6.6
   flutter_dotenv: ^6.0.1
+  google_mobile_ads: ^9.1.0
+  permission_handler: ^11.4.0
   shared_preferences: ^2.5.3
   usage_stats: ^2.0.1
   package_info_plus: ^10.2.1

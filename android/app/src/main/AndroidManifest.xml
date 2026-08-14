@@ -55,6 +55,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Google AdMob Application ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3760720558297239~6762602437"/>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
