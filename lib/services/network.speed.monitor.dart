@@ -14,19 +14,23 @@ import 'package:flutter/services.dart';
 /// occasionally non-advancing OS counters, so the displayed value does not
 /// drop to zero between refinements.
 class NetworkSpeedMonitor {
-  static const MethodChannel _statsChannel = MethodChannel('netkeep/network_stats');
-  static const MethodChannel _speedNotificationChannel = MethodChannel('netkeep/speed_notification');
+  static const MethodChannel _statsChannel = MethodChannel(
+    'netkeep/network_stats',
+  );
+  static const MethodChannel _speedNotificationChannel = MethodChannel(
+    'netkeep/speed_notification',
+  );
 
-  /// Number of consecutive samples averaged before a value is reported. Kept
-  /// short (sub-second sampling + continuously advancing counters) so the
-  /// status-bar readout tracks real-time throughput without visible lag.
-  static const int _smoothingSamples = 3;
+  /// Smoothing factor for Exponential Moving Average (EMA). Higher values adapt
+  /// faster to changes, lower values provide smoother transitions.
+  static const double _emaAlpha = 0.45;
 
   int? _lastRxBytes;
   int? _lastTxBytes;
   DateTime? _lastSampleAt;
-  final List<int> _downloadHistory = [];
-  final List<int> _uploadHistory = [];
+  double? _emaDownload;
+  double? _emaUpload;
+  int _consecutiveZeroTicks = 0;
 
   /// Forgets the previous baseline so the next [sample] establishes a fresh
   /// reference point instead of measuring across a (potentially long) gap.
@@ -34,8 +38,9 @@ class NetworkSpeedMonitor {
     _lastRxBytes = null;
     _lastTxBytes = null;
     _lastSampleAt = null;
-    _downloadHistory.clear();
-    _uploadHistory.clear();
+    _emaDownload = null;
+    _emaUpload = null;
+    _consecutiveZeroTicks = 0;
   }
 
   /// Samples the current TrafficStats counters and returns the smoothed
@@ -69,33 +74,37 @@ class NetworkSpeedMonitor {
     final downloadBps = (rxDelta * 1000 / elapsedMs).round();
     final uploadBps = (txDelta * 1000 / elapsedMs).round();
 
-    _downloadHistory.add(downloadBps);
-    _uploadHistory.add(uploadBps);
-    while (_downloadHistory.length > _smoothingSamples) {
-      _downloadHistory.removeAt(0);
-    }
-    while (_uploadHistory.length > _smoothingSamples) {
-      _uploadHistory.removeAt(0);
+    // Use Exponential Moving Average (EMA) to smooth out OS kernel buffer
+    // reporting gaps. Single-tick zero readings during active transfers are
+    // absorbed, while continuous zero ticks smoothly decay to zero.
+    final bool isInstantZero = (downloadBps == 0 && uploadBps == 0);
+    if (isInstantZero) {
+      _consecutiveZeroTicks++;
+    } else {
+      _consecutiveZeroTicks = 0;
     }
 
-    final smoothedDownload = _average(_downloadHistory);
-    final smoothedUpload = _average(_uploadHistory);
+    if (_emaDownload == null || _consecutiveZeroTicks >= 4) {
+      _emaDownload = downloadBps.toDouble();
+      _emaUpload = uploadBps.toDouble();
+    } else {
+      _emaDownload = _emaAlpha * downloadBps + (1.0 - _emaAlpha) * _emaDownload!;
+      _emaUpload = _emaAlpha * uploadBps + (1.0 - _emaAlpha) * _emaUpload!;
+    }
+
+    final smoothedDownload = _emaDownload!.round();
+    final smoothedUpload = _emaUpload!.round();
 
     await _updateSpeedIcon(smoothedDownload, smoothedUpload);
     return (smoothedDownload, smoothedUpload);
   }
 
-  static int _average(List<int> values) {
-    if (values.isEmpty) return 0;
-    var total = 0;
-    for (final value in values) {
-      total += value;
-    }
-    return (total / values.length).round();
-  }
-
   Future<(int, int)?> _readCounters() async {
     try {
+      final list = await _statsChannel.invokeMethod<List<dynamic>>('getTrafficBytes');
+      if (list != null && list.length >= 2) {
+        return (list[0] as int, list[1] as int);
+      }
       final rx = await _statsChannel.invokeMethod<int>('getRxBytes');
       final tx = await _statsChannel.invokeMethod<int>('getTxBytes');
       if (rx == null || tx == null) return null;
@@ -135,29 +144,5 @@ class NetworkSpeedMonitor {
       'title': title,
       'content': content,
     });
-  }
-
-  /// Formats a raw byte/second value as a human friendly network line used by
-  /// the console and status bar.
-  static String formatDownload(int bytesPerSecond) {
-    if (bytesPerSecond < 0) return '--';
-    if (bytesPerSecond == 0) return '0 B/s';
-    return '${_format(bytesPerSecond)}/s ↓';
-  }
-
-  static String formatUpload(int bytesPerSecond) {
-    if (bytesPerSecond < 0) return '--';
-    if (bytesPerSecond == 0) return '0 B/s';
-    return '${_format(bytesPerSecond)}/s ↑';
-  }
-
-  static String _format(int bytesPerSecond) {
-    final double kbps = bytesPerSecond / 1024.0;
-    if (kbps < 10) return '$bytesPerSecond B';
-    if (kbps < 1000) return '${kbps.toStringAsFixed(0)} KB';
-    final double mbps = kbps / 1024.0;
-    if (mbps < 1000) return '${mbps.toStringAsFixed(1)} MB';
-    final double gbps = mbps / 1024.0;
-    return '${gbps.toStringAsFixed(2)} GB';
   }
 }

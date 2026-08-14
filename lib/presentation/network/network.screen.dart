@@ -13,7 +13,6 @@ class NetworkScreen extends StatefulWidget {
   State<NetworkScreen> createState() => _NetworkScreenState();
 }
 
-// 1. 'with WidgetsBindingObserver' එකතු කරන්න
 class _NetworkScreenState extends State<NetworkScreen>
     with WidgetsBindingObserver {
   bool _hasPermission = false;
@@ -26,19 +25,17 @@ class _NetworkScreenState extends State<NetworkScreen>
   @override
   void initState() {
     super.initState();
-    // 2. Lifecycle Observer එක Register කරන්න
     WidgetsBinding.instance.addObserver(this);
     _loadDataUsage();
   }
 
   @override
   void dispose() {
-    // 3. Screen එක අයින් වෙද්දී Observer එක Remove කරන්න
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  // 4. User Settings වලින් ආපසු App එකට ආපු ගමන් මේ Method එක Auto Run වෙනවා
+  // Reload usage data when returning from the system settings screen.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -98,9 +95,7 @@ class _NetworkScreenState extends State<NetworkScreen>
       return const Scaffold(
         appBar: NetKeepAppBar(title: 'Network'),
         body: Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primaryColor,  
-          ),
+          child: CircularProgressIndicator(color: AppColors.primaryColor),
         ),
       );
     }
@@ -139,7 +134,9 @@ class _NetworkScreenState extends State<NetworkScreen>
                           color: AppColors.primaryColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(AppRadii.tile),
                           border: Border.all(
-                            color: AppColors.primaryColor.withValues(alpha: 0.35),
+                            color: AppColors.primaryColor.withValues(
+                              alpha: 0.35,
+                            ),
                           ),
                         ),
                         child: const Icon(

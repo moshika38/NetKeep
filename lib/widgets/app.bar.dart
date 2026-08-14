@@ -36,7 +36,6 @@ class NetKeepAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             child: const Icon(Icons.wifi, size: 18, color: Color(0xFF1A1108)),
           ),
-          // Image.asset("assets/app_icon.png",width: 34,height: 34,fit: BoxFit.cover,),
           const SizedBox(width: 12),
           Text.rich(
             TextSpan(

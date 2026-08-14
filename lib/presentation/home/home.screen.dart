@@ -83,8 +83,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case KeepAliveEventType.probe:
         _handleProbeEvent(event);
         break;
-      case KeepAliveEventType.speed:
-        break;
     }
   }
 
@@ -172,29 +170,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _checkServiceStatus() async {
     final running = await KeepAliveManager.isServiceRunning();
     if (mounted) setState(() => isServiceRunning = running);
-    // The speed toggle is authoritative: if it is ON but nothing is running
-    // (e.g. after an OS kill or a fresh process), re-establish the independent
-    // speed heartbeat without touching the Ping Service.
-    if (!running && _showNetworkSpeed) {
-      await _ensureSpeedIndicatorRunning();
-    }
-  }
-
-  Future<void>? _pendingSpeedStart;
-
-  Future<void> _ensureSpeedIndicatorRunning() async {
-    final pending = _pendingSpeedStart;
-    if (pending != null) {
-      await pending;
-      return;
-    }
-    final start = KeepAliveManager.setShowNetworkSpeedEnabled(true);
-    _pendingSpeedStart = start;
-    try {
-      await start;
-    } finally {
-      _pendingSpeedStart = null;
-    }
   }
 
   // ---------------------------------------------------------------------------
@@ -207,11 +182,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         isServiceRunning = false;
       });
       await KeepAliveManager.stopService();
-      if (_showNetworkSpeed) {
-        // Re-assert the independent speed heartbeat after the ping loop tears
-        // down, so it keeps running regardless of the Ping Service state.
-        await KeepAliveManager.setShowNetworkSpeedEnabled(true);
-      }
       return;
     }
     final started = await KeepAliveManager.startService(
@@ -374,7 +344,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.secondaryColor.withValues(alpha: 0.14),
+                          color: AppColors.secondaryColor.withValues(
+                            alpha: 0.14,
+                          ),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
                             color: AppColors.secondaryColor.withValues(
@@ -541,9 +513,10 @@ class _PulseDotState extends State<_PulseDot>
     vsync: this,
     duration: const Duration(milliseconds: 1100),
   )..repeat(reverse: true);
-  late final Animation<double> _scale = Tween(begin: 0.85, end: 1.6).animate(
-    CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _scale = Tween(
+    begin: 0.85,
+    end: 1.6,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
   @override
   void dispose() {

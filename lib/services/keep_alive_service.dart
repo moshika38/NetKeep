@@ -33,7 +33,7 @@ Future<bool> onIosBackground(ServiceInstance service) async {
   return true;
 }
 
-enum KeepAliveEventType { probe, status, speed }
+enum KeepAliveEventType { probe, status }
 
 /// Rolling statistics of the keep-alive loop. Tracked inside the background
 /// isolate and pushed to the UI with every event so counters survive activity
@@ -97,8 +97,7 @@ class KeepAliveStats {
       successfulPings: successful,
       failedPings: (map['failedPings'] as num?)?.toInt() ?? 0,
       totalLatencyMs: (map['totalLatencyMs'] as num?)?.toInt() ?? 0,
-      consecutiveFailures:
-          (map['consecutiveFailures'] as num?)?.toInt() ?? 0,
+      consecutiveFailures: (map['consecutiveFailures'] as num?)?.toInt() ?? 0,
       totalFailures: (map['totalFailures'] as num?)?.toInt() ?? 0,
     );
   }
@@ -107,8 +106,7 @@ class KeepAliveStats {
 /// A single event pushed from the background isolate over the plugin stream.
 /// `probe` events carry a formatted console line plus the transport result and
 /// latency; `status` events carry the current running state (used to reconnect
-/// the UI after the activity is recreated or the app resumes). `speed` events
-/// are retained for stream compatibility but no longer emitted: the live speed
+/// the UI after the activity is recreated or the app resumes). The live speed
 /// readout is self-contained in the background isolate and never surfaces in
 /// the UI.
 class KeepAliveEvent {
@@ -121,8 +119,6 @@ class KeepAliveEvent {
   final bool? showNetworkSpeed;
   final bool? success;
   final int? latency;
-  final int? downloadSpeed;
-  final int? uploadSpeed;
   final KeepAliveStats? stats;
 
   const KeepAliveEvent({
@@ -135,8 +131,6 @@ class KeepAliveEvent {
     this.showNetworkSpeed,
     this.success,
     this.latency,
-    this.downloadSpeed,
-    this.uploadSpeed,
     this.stats,
   });
 
@@ -144,7 +138,6 @@ class KeepAliveEvent {
     return KeepAliveEvent(
       type: switch (map['type']) {
         'status' => KeepAliveEventType.status,
-        'speed' => KeepAliveEventType.speed,
         _ => KeepAliveEventType.probe,
       },
       time: map['time'] as String?,
@@ -155,8 +148,6 @@ class KeepAliveEvent {
       showNetworkSpeed: map['showNetworkSpeed'] as bool?,
       success: map['success'] as bool?,
       latency: (map['latency'] as num?)?.toInt(),
-      downloadSpeed: (map['downloadSpeed'] as num?)?.toInt(),
-      uploadSpeed: (map['uploadSpeed'] as num?)?.toInt(),
       stats: KeepAliveStats.fromMap(map),
     );
   }
@@ -172,8 +163,12 @@ class KeepAliveEvent {
 class KeepAliveManager {
   static bool get _isAndroid => Platform.isAndroid;
 
-  static const MethodChannel _platformChannel = MethodChannel('netkeep/platform');
-  static const MethodChannel _wakelockChannel = MethodChannel('netkeep/wakelock');
+  static const MethodChannel _platformChannel = MethodChannel(
+    'netkeep/platform',
+  );
+  static const MethodChannel _wakelockChannel = MethodChannel(
+    'netkeep/wakelock',
+  );
 
   static Future<bool>? _configureFuture;
   static Stream<KeepAliveEvent>? _events;
@@ -343,10 +338,6 @@ class KeepAliveManager {
     final running = await isServiceRunning();
     if (running) {
       updateConfig(showNetworkSpeed: value);
-      return true;
-    }
-    if (value) {
-      return await startSpeedIndicator();
     }
     return true;
   }
@@ -407,8 +398,9 @@ class KeepAliveManager {
   static Future<bool> isIgnoringBatteryOptimizations() async {
     if (!_isAndroid) return false;
     try {
-      return await _platformChannel
-              .invokeMethod<bool>('isIgnoringBatteryOptimizations') ??
+      return await _platformChannel.invokeMethod<bool>(
+            'isIgnoringBatteryOptimizations',
+          ) ??
           false;
     } on PlatformException {
       return false;
@@ -423,7 +415,9 @@ class KeepAliveManager {
   static Future<void> openBatteryOptimizationSettings() async {
     if (!_isAndroid) return;
     try {
-      await _platformChannel.invokeMethod<void>('openBatteryOptimizationSettings');
+      await _platformChannel.invokeMethod<void>(
+        'openBatteryOptimizationSettings',
+      );
     } on PlatformException {
       // Unsupported device/ROM - ignore.
     } on MissingPluginException {
@@ -437,8 +431,9 @@ class KeepAliveManager {
   /// notification-driven UX of the previous native service).
   static Future<bool> _ensureNotificationPermission() async {
     try {
-      return await _platformChannel
-              .invokeMethod<bool>('ensureNotificationPermission') ??
+      return await _platformChannel.invokeMethod<bool>(
+            'ensureNotificationPermission',
+          ) ??
           true;
     } on PlatformException {
       return true;
@@ -451,7 +446,9 @@ class KeepAliveManager {
     final trimmed = targetUrl.trim();
     final envTarget = dotenv.env['TARGET_URL']?.trim();
     return trimmed.isEmpty
-        ? (envTarget?.isNotEmpty == true ? envTarget! : defaultKeepAliveTargetUrl)
+        ? (envTarget?.isNotEmpty == true
+              ? envTarget!
+              : defaultKeepAliveTargetUrl)
         : trimmed;
   }
 }
@@ -485,9 +482,10 @@ class KeepAliveEngine {
   final ServiceInstance _service;
   final PingClient _client = PingClient();
 
-  /// Short connect timeout for fallback probes so an outage does not stretch
-  /// the loop cadence beyond the configured interval for too long.
-  static const Duration _fallbackTimeout = Duration(seconds: 5);
+  /// Fallback probes use the same 10-second timeout as the primary probe so an
+  /// ISP-target outage is not reported as a full connection loss while still
+  /// giving each fallback target a fair chance to respond.
+  static const Duration _fallbackTimeout = Duration(seconds: 10);
 
   KeepAliveConfigData _config = const KeepAliveConfigData(
     targetUrl: defaultKeepAliveTargetUrl,
@@ -577,29 +575,9 @@ class KeepAliveEngine {
   Future<void> stop() async {
     _pingRunning = false;
     _generation++;
-    if (_config.showNetworkSpeed) {
-      // Speed indicator stays active: stop only the probe loop and keep the
-      // foreground service alive so the status-bar speed glyph keeps updating.
-      _emitStatus(running: false);
-      _emitProbe(
-        'Keep-Alive service stopped',
-        success: null,
-        latency: 0,
-      );
-      _speedMonitor.updateContent(
-        title: 'NetKeep Active',
-        content: 'Network speed active',
-      );
-      await KeepAliveManager.setWakelock(_shouldHoldWakelock);
-      return;
-    }
     await _stopSpeedHeartbeat();
     _emitStatus(running: false);
-    _emitProbe(
-      'Keep-Alive service stopped',
-      success: null,
-      latency: 0,
-    );
+    _emitProbe('Keep-Alive service stopped', success: null, latency: 0);
     await KeepAliveManager.setWakelock(false);
     await _service.stopSelf();
   }
@@ -678,8 +656,29 @@ class KeepAliveEngine {
       if (!_pingRunning || generation != _generation) return;
 
       final intervalSeconds = _config.intervalSeconds.clamp(1, 3600).toInt();
-      await Future<void>.delayed(Duration(seconds: intervalSeconds));
+      await Future<void>.delayed(_nextDelay(intervalSeconds));
     }
+  }
+
+  /// Computes the wait between probes. While the connection is healthy this is
+  /// simply the configured interval. During consecutive network failures an
+  /// exponential backoff kicks in: every failed probe doubles the wait (from
+  /// the configured interval) so an outage does not hammer the targets at full
+  /// cadence, capped at `interval * 4`. The first successful response resets
+  /// the counter, so [KeepAliveStats.record] drops `consecutiveFailures` back
+  /// to zero and the loop returns to the normal interval.
+  Duration _nextDelay(int intervalSeconds) {
+    final capSeconds = intervalSeconds * 4;
+    var backoffSeconds = intervalSeconds;
+    for (
+      var i = 1;
+      i < _stats.consecutiveFailures && backoffSeconds < capSeconds;
+      i++
+    ) {
+      backoffSeconds *= 2;
+    }
+    if (backoffSeconds > capSeconds) backoffSeconds = capSeconds;
+    return Duration(seconds: backoffSeconds);
   }
 
   /// Probes the primary target; when it is unreachable, checks the fallback
@@ -699,7 +698,7 @@ class KeepAliveEngine {
 
   String _formatProbeMessage(PingResult result) {
     if (result.ok) {
-      return '${result.rttMs}ms | Status: ${result.statusCode}';
+      return '${result.rttMs}ms | ${_statusLabel(result.statusCode)}';
     }
     switch (result.errorKind) {
       case PingErrorKind.timeout:
@@ -710,6 +709,23 @@ class KeepAliveEngine {
       case PingErrorKind.network:
       case PingErrorKind.none:
         return 'Status: Network Down';
+    }
+  }
+
+  /// Maps an HTTP status code to a human-readable console label so standard
+  /// 200 OK responses and Anti-403 pass responses (portal redirects / explicit
+  /// forbiddens from the ISP) are clearly distinguishable in the log.
+  String _statusLabel(int? status) {
+    switch (status) {
+      case 200:
+        return 'Status: 200 OK';
+      case 301:
+      case 302:
+        return 'Status: $status Redirect (Anti-403 pass)';
+      case 403:
+        return 'Status: 403 Forbidden (Anti-403 pass)';
+      default:
+        return 'Status: $status';
     }
   }
 

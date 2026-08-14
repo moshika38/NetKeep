@@ -23,7 +23,8 @@ import 'package:netkeep/services/network.speed.monitor.dart';
 class SpeedHeartbeat {
   SpeedHeartbeat({required this.targetUrl});
 
-  static const Duration _tickInterval = Duration(milliseconds: 600);
+  static const Duration _sampleInterval = Duration(milliseconds: 500);
+  static const Duration _trafficInterval = Duration(seconds: 1);
   static const Duration _connectTimeout = Duration(seconds: 5);
   static const Duration _ioTimeout = Duration(seconds: 3);
 
@@ -32,11 +33,11 @@ class SpeedHeartbeat {
   final NetworkSpeedMonitor _speedMonitor = NetworkSpeedMonitor();
 
   Dio? _dio;
-  Timer? _timer;
+  Timer? _speedTimer;
+  Timer? _trafficTimer;
   bool _stopped = true;
-  bool _tickInFlight = false;
-
-  bool get isActive => !_stopped;
+  bool _sampleInFlight = false;
+  bool _trafficInFlight = false;
 
   Dio get _client => _dio ??= Dio(
     BaseOptions(
@@ -53,29 +54,36 @@ class SpeedHeartbeat {
     if (!_stopped) return;
     _stopped = false;
     _speedMonitor.reset();
-    _timer ??= Timer.periodic(_tickInterval, (_) => _tick());
+    _speedTimer ??= Timer.periodic(_sampleInterval, (_) => _sampleSpeed());
+    _trafficTimer ??= Timer.periodic(_trafficInterval, (_) => _fireTrafficAsync());
   }
 
   /// Stops the heartbeat completely and hides the status-bar speed glyph.
   Future<void> stop() async {
     _stopped = true;
-    _timer?.cancel();
-    _timer = null;
+    _speedTimer?.cancel();
+    _speedTimer = null;
+    _trafficTimer?.cancel();
+    _trafficTimer = null;
     await _speedMonitor.hideSpeedIcon();
   }
 
-  Future<void> _tick() async {
-    if (_stopped || _tickInFlight) return;
-    _tickInFlight = true;
+  Future<void> _sampleSpeed() async {
+    if (_stopped || _sampleInFlight) return;
+    _sampleInFlight = true;
     try {
-      await _fireTraffic();
       await _speedMonitor.sample();
     } catch (_) {
-      // A heartbeat tick must never crash the background isolate; the next
-      // tick retries.
+      // A sample tick must never crash the background isolate.
     } finally {
-      _tickInFlight = false;
+      _sampleInFlight = false;
     }
+  }
+
+  void _fireTrafficAsync() {
+    if (_stopped || _trafficInFlight) return;
+    _trafficInFlight = true;
+    _fireTraffic().whenComplete(() => _trafficInFlight = false);
   }
 
   /// Fires one lightweight HEAD request so real bytes move in and out of the
