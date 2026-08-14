@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Monochrome wifi glyph used as the static status-bar small icon of the
+    Monochrome leaf glyph used as the static status-bar small icon of the
     keep-alive foreground notification whenever the live speed readout is off.
     Same design as the app's ic_stat_netkeep vector so both states are visually
     consistent.
@@ -21,5 +21,5 @@
     android:viewportHeight="24">
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M12,19.65l3.06,-3.82c0,-1.27 -1.19,-2.12 -3.06,-2.12s-3.06,0.85 -3.06,2.12L12,19.65zM12,9.03c1.61,0 3.06,0.51 4.25,1.44l2.29,-2.21c-1.78,-1.44 -4.08,-2.21 -6.54,-2.21s-4.76,0.77 -6.54,2.21l2.29,2.21c1.19,-0.93 2.63,-1.44 4.25,-1.44zM12,4.35C8.26,4.35 4.86,5.71 2.48,7.92l1.78,1.78c1.96,-1.87 4.68,-3.14 7.74,-3.14s5.78,1.27 7.74,3.15l1.78,-1.78C19.14,5.71 15.74,4.35 12,4.35z" />
+        android:pathData="M17,8C8,10 5,16 5,22C8,22 14,19 16,10C16,10 16,8 17,8M3,3C3,3 8,3 12,7C16,11 19,16 19,21C14,21 9,18 7,14C5,10 3,3 3,3Z" />
 </vector>
