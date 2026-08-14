@@ -21,7 +21,7 @@ Future<void> onStart(ServiceInstance service) async {
   final engine = KeepAliveEngine(service);
   await engine.init();
 
-  service.on('appStart').listen(engine.applyConfig);
+  service.on('appStart').listen(engine.handleAppStart);
   service.on('appUpdateConfig').listen(engine.applyConfig);
   service.on('appStop').listen((_) => engine.stop());
 }
@@ -252,10 +252,13 @@ class KeepAliveManager {
     await AppPreferences.setKeepAliveConfig(config);
 
     try {
+      final isRunning = await isServiceRunning();
+      if (isRunning) {
+        FlutterBackgroundService().invoke('appStart', config.toMap());
+        return true;
+      }
       final started = await FlutterBackgroundService().startService();
       if (started) {
-        // Applies the config to an already-running isolate immediately; a
-        // freshly started isolate picks it up from persisted preferences.
         FlutterBackgroundService().invoke('appStart', config.toMap());
       } else {
         await AppPreferences.setKeepAliveAutoRestart(false);
@@ -338,6 +341,8 @@ class KeepAliveManager {
     final running = await isServiceRunning();
     if (running) {
       updateConfig(showNetworkSpeed: value);
+    } else if (value) {
+      await startSpeedIndicator();
     }
     return true;
   }
@@ -542,6 +547,17 @@ class KeepAliveEngine {
     _emitStatus();
   }
 
+  void handleAppStart(Map<String, dynamic>? patch) {
+    if (patch != null && patch.isNotEmpty) {
+      _config = _config.merge(patch);
+      _persistConfig();
+    }
+    _syncSpeedHeartbeat();
+    _startPingLoop();
+    KeepAliveManager.setWakelock(_shouldHoldWakelock);
+    _emitStatus();
+  }
+
   void applyConfig(Map<String, dynamic>? patch) {
     if (patch == null || patch.isEmpty) return;
     _config = _config.merge(patch);
@@ -559,7 +575,10 @@ class KeepAliveEngine {
     } else if (!_config.showNetworkSpeed) {
       // Nothing left for this isolate to do (speed was turned off with no
       // ping loop to keep alive).
-      _service.stopSelf();
+      _stopSpeedHeartbeat().then((_) async {
+        await KeepAliveManager.setWakelock(false);
+        await _service.stopSelf();
+      });
     } else {
       _emitStatus();
     }
@@ -575,11 +594,22 @@ class KeepAliveEngine {
   Future<void> stop() async {
     _pingRunning = false;
     _generation++;
-    await _stopSpeedHeartbeat();
     _emitStatus(running: false);
-    _emitProbe('Keep-Alive service stopped', success: null, latency: 0);
-    await KeepAliveManager.setWakelock(false);
-    await _service.stopSelf();
+    if (_config.showNetworkSpeed) {
+      _emitProbe('Keep-Alive ping service stopped', success: null, latency: 0);
+      try {
+        await _speedMonitor.updateContent(
+          title: 'NetKeep Active',
+          content: 'Network speed active',
+        );
+      } catch (_) {}
+      await KeepAliveManager.setWakelock(_shouldHoldWakelock);
+    } else {
+      await _stopSpeedHeartbeat();
+      _emitProbe('Keep-Alive service stopped', success: null, latency: 0);
+      await KeepAliveManager.setWakelock(false);
+      await _service.stopSelf();
+    }
   }
 
   void _startSpeedHeartbeat() {

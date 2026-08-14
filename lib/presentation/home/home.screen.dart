@@ -169,8 +169,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _checkServiceStatus() async {
-    final running = await KeepAliveManager.isServiceRunning();
-    if (mounted) setState(() => isServiceRunning = running);
+    final serviceRunning = await KeepAliveManager.isServiceRunning();
+    final pingRunning = serviceRunning && AppPreferences.keepAliveAutoRestart;
+    if (mounted) setState(() => isServiceRunning = pingRunning);
   }
 
   // ---------------------------------------------------------------------------
