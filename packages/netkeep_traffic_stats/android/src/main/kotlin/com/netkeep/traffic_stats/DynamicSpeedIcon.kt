@@ -17,7 +17,7 @@ import kotlin.math.roundToInt
  * transparent fixed 48x48 px canvas (24dp at 2x density - the OS shows it at
  * native size instead of auto-downscaling larger bitmaps, which is what made
  * the glyphs render tiny). The numeric value sits on the top line and the
- * uppercase unit ("KB"/"MB") beneath it. Font sizes and positions are fixed, so
+ * unit ("kB/s"/"Mb/s") beneath it. Font sizes and positions are fixed, so
  * generating an icon is pure arithmetic with no text-bounds measurement or
  * scaling loops and can never block or ANR the caller.
  */
@@ -31,7 +31,7 @@ object DynamicSpeedIcon {
     /**
      * Generates a fixed 48x48 px bitmap with the given download speed drawn as
      * two stacked rows: the bold numeric value on the top line (baseline y=25f)
-     * and the uppercase unit beneath it (baseline y=46f), both horizontally
+     * and the unit beneath it (baseline y=45f), both horizontally
      * centered. The top text size is 32f so the font baseline clears the top
      * canvas boundary instead of clipping/blurring against it. Wrapped in a
      * try-catch so a draw failure falls back to a white dot instead of
@@ -59,9 +59,9 @@ object DynamicSpeedIcon {
             paint.textSize = 32f
             canvas.drawText(numberString, CENTER_X, 25f, paint)
 
-            // Bottom line (unit): uppercase "KB"/"MB".
-            paint.textSize = 24f
-            canvas.drawText(unitString, CENTER_X, 46f, paint)
+            // Bottom line (unit): "kB/s"/"Mb/s".
+            paint.textSize = 18f
+            canvas.drawText(unitString, CENTER_X, 45f, paint)
 
             bitmap
         } catch (_: Throwable) {
@@ -81,31 +81,31 @@ object DynamicSpeedIcon {
     }
 
     /**
-     * Splits a bytes-per-second value into the numeric value and the uppercase
-     * unit for the two-line icon: whole KB below 1 MB/s ("0", "100", "850"),
-     * MB with one decimal below 10 MB/s ("1.2", "5.5") and whole MB at 10 MB/s
+     * Splits a bytes-per-second value into the numeric value and the
+     * unit for the two-line icon: whole kB/s below 1 Mb/s ("0", "100", "850"),
+     * Mb/s with one decimal below 10 Mb/s ("1.2", "5.5") and whole Mb/s at 10 Mb/s
      * and above ("15", "20"). Values that round across a unit boundary (e.g.
-     * 1023.8 KB/s) roll over to the next unit instead of producing an
+     * 1023.8 kB/s) roll over to the next unit instead of producing an
      * over-wide value like "1024" that would clip at the fixed 32f size.
      */
     fun formatSpeed(bytesPerSecond: Long): Pair<String, String> {
-        if (bytesPerSecond <= 0L) return "0" to "KB"
+        if (bytesPerSecond <= 0L) return "0" to "kB/s"
 
         val kb = bytesPerSecond / 1024.0
         // Round to the nearest KB but never truncate a positive speed to "0":
         // e.g. 500 bytes/s (~0.5 KB/s) must show "1", not "0". There is no
         // artificial minimum-speed threshold that would mask low speeds.
         val kbRounded = maxOf(1, kb.roundToInt())
-        if (kbRounded < 1024) return "${kbRounded}" to "KB"
+        if (kbRounded < 1024) return "${kbRounded}" to "kB/s"
 
         val mb = kb / 1024.0
-        if (mb < 10.0) return oneDecimalOrWhole(mb) to "MB"
+        if (mb < 10.0) return oneDecimalOrWhole(mb) to "Mb/s"
         val mbRounded = mb.roundToInt()
-        if (mbRounded < 1024) return "${mbRounded}" to "MB"
+        if (mbRounded < 1024) return "${mbRounded}" to "Mb/s"
 
         val gb = mb / 1024.0
-        if (gb < 10.0) return oneDecimalOrWhole(gb) to "GB"
-        return "${gb.roundToInt()}" to "GB"
+        if (gb < 10.0) return oneDecimalOrWhole(gb) to "Gb/s"
+        return "${gb.roundToInt()}" to "Gb/s"
     }
 
     // Renders a sub-10 value with one decimal place, rolling over to a whole

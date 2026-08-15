@@ -51,3 +51,13 @@ env
 /mnt
 ./mnt
 */mnt
+
+/key
+key/
+.key/
+./key
+*upload-keystore.jks
+*.jks
+
+/android/key.properties
+/key/

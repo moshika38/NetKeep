@@ -99,9 +99,9 @@ object SpeedNotificationManager {
         val builder = getOrCreateBuilder(context, icon)
 
         val contentText = if (uploadBps > 0L) {
-            "Download: $numberString $unitString/s   Upload: $upNumber $upUnit/s"
+            "Download: $numberString $unitString   Upload: $upNumber $upUnit"
         } else {
-            "$numberString $unitString/s"
+            "$numberString $unitString"
         }
 
         // In-place update only: swap the dynamic parts on the SAME persistent
