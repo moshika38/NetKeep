@@ -296,7 +296,7 @@ const _kNoteCalloutBg = Color(0x1A00FFA3);
 
 const _kBoldStyle = TextStyle(color: AppColors.white, fontWeight: FontWeight.w700);
 
-class _LegalLayout extends StatelessWidget {
+class _LegalLayout extends StatefulWidget {
   final String appBarTitle;
   final String badge;
   final String title;
@@ -314,23 +314,34 @@ class _LegalLayout extends StatelessWidget {
   });
 
   @override
+  State<_LegalLayout> createState() => _LegalLayoutState();
+}
+
+class _LegalLayoutState extends State<_LegalLayout> {
+  bool _isHandlingBack = false;
+
+  void _handleBackPop(bool didPop) {
+    if (didPop || _isHandlingBack) return;
+    _isHandlingBack = true;
+
+    AdManager.instance.showAdIfReady(
+      onComplete: () {
+        if (mounted && Navigator.canPop(context)) {
+          Navigator.of(context).pop();
+        }
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        AdManager.instance.showAdIfReady(
-          onComplete: () {
-            if (context.mounted && Navigator.canPop(context)) {
-              Navigator.of(context).pop();
-            }
-          },
-        );
-      },
+      onPopInvokedWithResult: (didPop, result) => _handleBackPop(didPop),
       child: Scaffold(
         backgroundColor: AppColors.backgroundColor,
-        appBar: NetKeepAppBar(title: appBarTitle),
+        appBar: NetKeepAppBar(title: widget.appBarTitle),
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -344,23 +355,23 @@ class _LegalLayout extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _LegalBadge(text: badge),
+                  _LegalBadge(text: widget.badge),
                   const SizedBox(height: 14),
                   Text(
-                    title,
+                    widget.title,
                     style: textTheme.titleLarge!.copyWith(fontSize: 22),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    meta,
+                    widget.meta,
                     style: textTheme.bodySmall!.copyWith(fontSize: 12),
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
                     child: Divider(height: 1),
                   ),
-                  ...children,
-                  _LegalFooter(text: footer),
+                  ...widget.children,
+                  _LegalFooter(text: widget.footer),
                 ],
               ),
             ),

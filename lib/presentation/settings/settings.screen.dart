@@ -31,204 +31,224 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  bool _isHandlingBack = false;
+
+  void _handleBackPop(bool didPop) {
+    if (didPop || _isHandlingBack) return;
+    if (!Navigator.canPop(context)) return;
+
+    _isHandlingBack = true;
+    AdManager.instance.showAdIfReady(
+      onComplete: () {
+        if (mounted && Navigator.canPop(context)) {
+          Navigator.of(context).pop();
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const NetKeepAppBar(title: 'Settings'),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const SectionHeader(
-            title: 'Console',
-            subtitle: 'Live console behavior',
-          ),
-          const SizedBox(height: 12),
-          Card(
-            margin: EdgeInsets.zero,
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    value: _autoClearConsole,
-                    onChanged: (value) {
-                      setState(() => _autoClearConsole = value);
-                      AppPreferences.setAutoClearConsole(value);
-                    },
-                    secondary: const _TileIcon(
-                      icon: Icons.cleaning_services,
-                      color: AppColors.tertiaryColor,
-                    ),
-                    title: const Text(
-                      'Auto Clear Console',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+    return PopScope(
+      canPop: !Navigator.canPop(context),
+      onPopInvokedWithResult: (didPop, result) => _handleBackPop(didPop),
+      child: Scaffold(
+        appBar: const NetKeepAppBar(title: 'Settings'),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const SectionHeader(
+              title: 'Console',
+              subtitle: 'Live console behavior',
+            ),
+            const SizedBox(height: 12),
+            Card(
+              margin: EdgeInsets.zero,
+              child: Material(
+                color: Colors.transparent,
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      value: _autoClearConsole,
+                      onChanged: (value) {
+                        setState(() => _autoClearConsole = value);
+                        AppPreferences.setAutoClearConsole(value);
+                      },
+                      secondary: const _TileIcon(
+                        icon: Icons.cleaning_services,
+                        color: AppColors.tertiaryColor,
+                      ),
+                      title: const Text(
+                        'Auto Clear Console',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        _autoClearConsole
+                            ? 'Clears the console log history on app launch'
+                            : 'Keeps console log history across app restarts',
                       ),
                     ),
-                    subtitle: Text(
-                      _autoClearConsole
-                          ? 'Clears the console log history on app launch'
-                          : 'Keeps console log history across app restarts',
-                    ),
-                  ),
-                  const Divider(indent: 16, endIndent: 16),
-                  ListTile(
-                    leading: const _TileIcon(
-                      icon: Icons.delete_sweep_outlined,
-                      color: AppColors.tertiaryColor,
-                    ),
-                    title: const _TileTitle('Clear Console Log'),
-                    subtitle: const Text('Wipe all saved console log history'),
-                    onTap: () async {
-                      await AppPreferences.setConsoleLogs([]);
-                      AdManager.instance.showAdIfReady();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Console logs cleared successfully'),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 28),
-          const SectionHeader(
-            title: 'Background & Battery',
-            subtitle: 'Background reliability settings',
-          ),
-          const SizedBox(height: 12),
-          Card(
-            margin: EdgeInsets.zero,
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
-                children: [
-                  const ListTile(
-                    leading: _TileIcon(
-                      icon: Icons.battery_alert,
-                      color: AppColors.tertiaryColor,
-                    ),
-                    title: _TileTitle('Battery Optimization'),
-                    subtitle: Text(
-                      'Android may pause background network activity on some '
-                      'devices. Excluding NetKeep from battery optimization '
-                      'keeps probes running more reliably when the screen is off.',
-                    ),
-                  ),
-                  FutureBuilder<bool>(
-                    future: _batteryExemption,
-                    builder: (context, snapshot) {
-                      final exempt = snapshot.data ?? false;
-                      return ListTile(
-                        leading: const _TileIcon(
-                          icon: Icons.shield_outlined,
-                          color: AppColors.secondaryColor,
-                        ),
-                        title: const _TileTitle('Exemption Status'),
-                        subtitle: Text(
-                          exempt
-                              ? 'NetKeep is exempt from battery optimization'
-                              : 'NetKeep is not exempt from battery optimization',
-                        ),
-                        trailing: Icon(
-                          exempt
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                          color: exempt
-                              ? AppColors.secondaryColor
-                              : AppColors.tertiaryColor,
-                        ),
-                      );
-                    },
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () async {
-                          await KeepAliveManager
-                              .openBatteryOptimizationSettings();
-                          setState(() {
-                            _batteryExemption =
-                                KeepAliveManager.isIgnoringBatteryOptimizations();
-                          });
-                        },
-                        icon: const Icon(Icons.settings_power),
-                        label: const Text('Open Battery Settings'),
+                    const Divider(indent: 16, endIndent: 16),
+                    ListTile(
+                      leading: const _TileIcon(
+                        icon: Icons.delete_sweep_outlined,
+                        color: AppColors.tertiaryColor,
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 28),
-          const SectionHeader(
-            title: 'About',
-            subtitle: 'App information & policies',
-          ),
-          const SizedBox(height: 12),
-          Card(
-            margin: EdgeInsets.zero,
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const _TileIcon(
-                      icon: Icons.info_outline,
-                      color: AppColors.primaryColor,
-                    ),
-                    title: const _TileTitle('App Version'),
-                    subtitle: FutureBuilder<String>(
-                      future: AppInfoService.getAppVersion(),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasData) {
-                          return Text(
-                            snapshot.data!,
-                            style: const TextStyle(color: AppColors.white),
+                      title: const _TileTitle('Clear Console Log'),
+                      subtitle: const Text('Wipe all saved console log history'),
+                      onTap: () async {
+                        await AppPreferences.setConsoleLogs([]);
+                        AdManager.instance.showAdIfReady();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Console logs cleared successfully'),
+                            ),
                           );
                         }
-                        return const Text(
-                          'v1.0.1+2',
-                          style: TextStyle(color: AppColors.textColor),
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+            const SectionHeader(
+              title: 'Background & Battery',
+              subtitle: 'Background reliability settings',
+            ),
+            const SizedBox(height: 12),
+            Card(
+              margin: EdgeInsets.zero,
+              child: Material(
+                color: Colors.transparent,
+                child: Column(
+                  children: [
+                    const ListTile(
+                      leading: _TileIcon(
+                        icon: Icons.battery_alert,
+                        color: AppColors.tertiaryColor,
+                      ),
+                      title: _TileTitle('Battery Optimization'),
+                      subtitle: Text(
+                        'Android may pause background network activity on some '
+                        'devices. Excluding NetKeep from battery optimization '
+                        'keeps probes running more reliably when the screen is off.',
+                      ),
+                    ),
+                    FutureBuilder<bool>(
+                      future: _batteryExemption,
+                      builder: (context, snapshot) {
+                        final exempt = snapshot.data ?? false;
+                        return ListTile(
+                          leading: const _TileIcon(
+                            icon: Icons.shield_outlined,
+                            color: AppColors.secondaryColor,
+                          ),
+                          title: const _TileTitle('Exemption Status'),
+                          subtitle: Text(
+                            exempt
+                                ? 'NetKeep is exempt from battery optimization'
+                                : 'NetKeep is not exempt from battery optimization',
+                          ),
+                          trailing: Icon(
+                            exempt
+                                ? Icons.check_circle
+                                : Icons.radio_button_unchecked,
+                            color: exempt
+                                ? AppColors.secondaryColor
+                                : AppColors.tertiaryColor,
+                          ),
                         );
                       },
                     ),
-                  ),
-                  const Divider(indent: 16, endIndent: 16),
-                  ListTile(
-                    leading: const _TileIcon(
-                      icon: Icons.privacy_tip_outlined,
-                      color: AppColors.secondaryColor,
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            await KeepAliveManager
+                                .openBatteryOptimizationSettings();
+                            setState(() {
+                              _batteryExemption =
+                                  KeepAliveManager.isIgnoringBatteryOptimizations();
+                            });
+                          },
+                          icon: const Icon(Icons.settings_power),
+                          label: const Text('Open Battery Settings'),
+                        ),
+                      ),
                     ),
-                    title: const _TileTitle('Privacy Policy'),
-                    subtitle: const Text('How we handle your data'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _openScreen(const PrivacyScreen()),
-                  ),
-                  const Divider(indent: 16, endIndent: 16),
-                  ListTile(
-                    leading: const _TileIcon(
-                      icon: Icons.policy_outlined,
-                      color: AppColors.tertiaryColor,
-                    ),
-                    title: const _TileTitle('Terms & Conditions'),
-                    subtitle: const Text('App usage terms'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _openScreen(const TermsScreen()),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 28),
+            const SectionHeader(
+              title: 'About',
+              subtitle: 'App information & policies',
+            ),
+            const SizedBox(height: 12),
+            Card(
+              margin: EdgeInsets.zero,
+              child: Material(
+                color: Colors.transparent,
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const _TileIcon(
+                        icon: Icons.info_outline,
+                        color: AppColors.primaryColor,
+                      ),
+                      title: const _TileTitle('App Version'),
+                      subtitle: FutureBuilder<String>(
+                        future: AppInfoService.getAppVersion(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData) {
+                            return Text(
+                              snapshot.data!,
+                              style: const TextStyle(color: AppColors.white),
+                            );
+                          }
+                          return const Text(
+                            'v1.0.1+2',
+                            style: TextStyle(color: AppColors.textColor),
+                          );
+                        },
+                      ),
+                    ),
+                    const Divider(indent: 16, endIndent: 16),
+                    ListTile(
+                      leading: const _TileIcon(
+                        icon: Icons.privacy_tip_outlined,
+                        color: AppColors.secondaryColor,
+                      ),
+                      title: const _TileTitle('Privacy Policy'),
+                      subtitle: const Text('How we handle your data'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _openScreen(const PrivacyScreen()),
+                    ),
+                    const Divider(indent: 16, endIndent: 16),
+                    ListTile(
+                      leading: const _TileIcon(
+                        icon: Icons.policy_outlined,
+                        color: AppColors.tertiaryColor,
+                      ),
+                      title: const _TileTitle('Terms & Conditions'),
+                      subtitle: const Text('App usage terms'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _openScreen(const TermsScreen()),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

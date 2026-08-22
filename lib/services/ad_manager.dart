@@ -78,7 +78,7 @@ class AdManager {
   /// proceed without freezing or delay.
   Future<void> showAdIfReady({
     VoidCallback? onComplete,
-    Duration timeout = const Duration(milliseconds: 1500),
+    Duration timeout = const Duration(milliseconds: 3000),
   }) async {
     bool hasCompleted = false;
     void safeOnComplete() {
@@ -94,25 +94,21 @@ class AdManager {
       return;
     }
 
-    // If ad is loading, wait briefly for it to complete loading.
+    // If ad is not loaded and not loading, initiate load now.
     if (!_isAdLoading && _interstitialAd == null) {
       loadInterstitialAd();
     }
 
-    if (!_isAdLoading && _interstitialAd == null) {
-      safeOnComplete();
-      return;
-    }
-
+    // If ad is loading, poll briefly up to [timeout] for it to finish loading.
     if (_isAdLoading && _interstitialAd == null) {
       final Stopwatch sw = Stopwatch()..start();
-      while (_isAdLoading && sw.elapsed < timeout) {
+      while (_isAdLoading && _interstitialAd == null && sw.elapsed < timeout) {
         await Future<void>.delayed(const Duration(milliseconds: 100));
       }
     }
 
     if (!isInterstitialAdReady || _isAdShowing) {
-      debugPrint('AdManager: InterstitialAd not ready. Proceeding with flow & preloading.');
+      debugPrint('AdManager: InterstitialAd not ready after wait. Proceeding with flow & preloading.');
       safeOnComplete();
       loadInterstitialAd();
       return;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:netkeep/presentation/home/home.screen.dart';
 import 'package:netkeep/presentation/network/network.screen.dart';
 import 'package:netkeep/presentation/settings/settings.screen.dart';
@@ -22,6 +23,7 @@ class _ShellScreenState extends State<ShellScreen> {
   ];
 
   int _index = 0;
+  bool _isHandlingBack = false;
 
   @override
   void initState() {
@@ -36,40 +38,63 @@ class _ShellScreenState extends State<ShellScreen> {
     await PermissionService.checkAndRequestNotificationPermission();
   }
 
+  void _handleBackPop(bool didPop) {
+    if (didPop || _isHandlingBack) return;
+    _isHandlingBack = true;
+
+    if (_index != 0) {
+      setState(() {
+        _index = 0;
+        _isHandlingBack = false;
+      });
+      return;
+    }
+
+    AdManager.instance.showAdIfReady(
+      onComplete: () {
+        SystemNavigator.pop();
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _screens[_index],
-      bottomNavigationBar: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const BannerAdWidget(),
-            Container(
-              decoration: const BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: AppColors.borderColor),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) => _handleBackPop(didPop),
+      child: Scaffold(
+        body: _screens[_index],
+        bottomNavigationBar: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const BannerAdWidget(),
+              Container(
+                decoration: const BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: AppColors.borderColor),
+                  ),
+                ),
+                child: NavigationBar(
+                  selectedIndex: _index,
+                  onDestinationSelected: (index) => setState(() => _index = index),
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home),
+                      label: 'HOME',
+                    ),
+                    NavigationDestination(icon: Icon(Icons.speed), label: 'NETWORK'),
+                    NavigationDestination(
+                      icon: Icon(Icons.settings_outlined),
+                      selectedIcon: Icon(Icons.settings),
+                      label: 'SETTINGS',
+                    ),
+                  ],
                 ),
               ),
-              child: NavigationBar(
-                selectedIndex: _index,
-                onDestinationSelected: (index) => setState(() => _index = index),
-                destinations: const [
-                  NavigationDestination(
-                    icon: Icon(Icons.home_outlined),
-                    selectedIcon: Icon(Icons.home),
-                    label: 'HOME',
-                  ),
-                  NavigationDestination(icon: Icon(Icons.speed), label: 'NETWORK'),
-                  NavigationDestination(
-                    icon: Icon(Icons.settings_outlined),
-                    selectedIcon: Icon(Icons.settings),
-                    label: 'SETTINGS',
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

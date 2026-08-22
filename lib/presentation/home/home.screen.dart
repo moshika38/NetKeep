@@ -131,10 +131,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Loads the persisted console history on launch. The "Clear Console"
   /// toggle is honored: when it is enabled the history is wiped instead of
   /// restored, so a fresh session starts with an empty console.
+  /// Loads the persisted console history on launch. The "Clear Console"
+  /// toggle is honored: when it is enabled the history is wiped instead of
+  /// restored, so a fresh session starts with an empty console.
   Future<void> _loadConsoleLogs() async {
     if (AppPreferences.autoClearConsole) {
       _logs.clear();
       await AppPreferences.setConsoleLogs(_logs);
+      AdManager.instance.showAdIfReady();
       return;
     }
     final saved = await AppPreferences.getConsoleLogs();
@@ -236,6 +240,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         intervalSeconds: intervalSeconds,
       );
     }
+    AdManager.instance.showAdIfReady();
   }
 
   Future<void> _onShowNetworkSpeedChanged(bool value) async {
@@ -245,6 +250,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Decoupled from the Ping Service: starts/stops the independent speed
     // heartbeat in the background isolate, whether or not ping is active.
     await KeepAliveManager.setShowNetworkSpeedEnabled(value);
+    AdManager.instance.showAdIfReady();
   }
 
   // ---------------------------------------------------------------------------
