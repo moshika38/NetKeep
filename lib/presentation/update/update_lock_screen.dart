@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:netkeep/services/app_update_service.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.background.dart';
+import 'package:netkeep/widgets/app.loading.indicator.dart';
 
 /// Mandatory non-bypassable lock screen shown when a Google Play update is required.
 class UpdateLockScreen extends StatefulWidget {
@@ -146,14 +147,7 @@ class _UpdateLockScreenState extends State<UpdateLockScreen> {
                             ),
                           ),
                           icon: _isUpdating
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Color(0xFF080B11),
-                                  ),
-                                )
+                              ? const AppLoadingIndicator(size: 20.0)
                               : const Icon(Icons.download_rounded, size: 20),
                           label: Text(
                             _isUpdating ? 'INITIALIZING UPDATE...' : 'UPDATE NOW',

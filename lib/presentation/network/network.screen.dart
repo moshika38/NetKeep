@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:netkeep/services/data.usage.service.dart';
 import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.bar.dart';
+import 'package:netkeep/widgets/app.loading.indicator.dart';
 import 'package:netkeep/widgets/network_widgets/usage.hero.dart';
 import 'package:netkeep/widgets/network_widgets/usage.table.dart';
 import 'package:netkeep/widgets/section.header.dart';
@@ -95,7 +96,7 @@ class _NetworkScreenState extends State<NetworkScreen>
       return const Scaffold(
         appBar: NetKeepAppBar(title: 'Network'),
         body: Center(
-          child: CircularProgressIndicator(color: AppColors.primaryColor),
+          child: AppLoadingIndicator(size: 120.0),
         ),
       );
     }
@@ -193,7 +194,7 @@ class _NetworkScreenState extends State<NetworkScreen>
     return Scaffold(
       appBar: const NetKeepAppBar(title: 'Network'),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AppLoadingIndicator(size: 120.0))
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [

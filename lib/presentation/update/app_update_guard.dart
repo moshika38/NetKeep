@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:netkeep/presentation/shell/shell.screen.dart';
 import 'package:netkeep/presentation/update/update_lock_screen.dart';
 import 'package:netkeep/services/app_update_service.dart';
-import 'package:netkeep/utils/theme.dart';
 import 'package:netkeep/widgets/app.background.dart';
+import 'package:netkeep/widgets/app.loading.indicator.dart';
 
 /// Guard widget checking Google Play Store for mandatory app updates before allowing
 /// access to the main NetKeep application UI.
@@ -56,7 +56,7 @@ class _AppUpdateGuardState extends State<AppUpdateGuard>
         child: Scaffold(
           backgroundColor: Colors.transparent,
           body: Center(
-            child: CircularProgressIndicator(color: AppColors.primaryColor),
+            child: AppLoadingIndicator(size: 120.0),
           ),
         ),
       );

@@ -4,8 +4,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Helper class to manage Google AdMob App and Unit IDs safely via [dotenv].
 ///
-/// Provides fallback Google Test Ad Unit IDs when keys are missing or invalid
-/// to prevent runtime crashes during development and testing.
+/// Automatically uses official Google Test Ad Unit IDs in debug mode ([kDebugMode])
+/// to guarantee 100% ad fill rate during testing and development, avoiding AdMob
+/// "No fill" (code 3) errors. Uses production IDs from `.env` in release builds.
 class AdHelper {
   // Official Google AdMob Test Unit IDs
   static const String _testBannerIdAndroid = 'ca-app-pub-3940256099942544/6300978111';
@@ -17,8 +18,13 @@ class AdHelper {
   static const String _testAppIdAndroid = 'ca-app-pub-3940256099942544~3347511713';
   static const String _testAppIdIos = 'ca-app-pub-3940256099942544~1458002511';
 
-  /// Returns the AdMob Application ID configured in .env, falling back to test App ID.
+  /// Returns the AdMob Application ID. Uses Google Test App ID in debug mode,
+  /// and the configured ID from `.env` in release mode.
   static String get appId {
+    if (kDebugMode) {
+      if (kIsWeb) return '';
+      return Platform.isIOS ? _testAppIdIos : _testAppIdAndroid;
+    }
     final String? id = dotenv.env['ADMOB_APP_ID'];
     if (id != null && id.trim().isNotEmpty) {
       return id.trim();
@@ -27,8 +33,13 @@ class AdHelper {
     return Platform.isIOS ? _testAppIdIos : _testAppIdAndroid;
   }
 
-  /// Returns the Banner Ad Unit ID configured in .env, falling back to test Banner ID.
+  /// Returns the Banner Ad Unit ID. Uses Google Test Banner ID in debug mode,
+  /// and the configured ID from `.env` in release mode.
   static String get bannerAdUnitId {
+    if (kDebugMode) {
+      if (kIsWeb) return '';
+      return Platform.isIOS ? _testBannerIdIos : _testBannerIdAndroid;
+    }
     final String? id = dotenv.env['ADMOB_BANNER_ID'];
     if (id != null && id.trim().isNotEmpty) {
       return id.trim();
@@ -37,8 +48,13 @@ class AdHelper {
     return Platform.isIOS ? _testBannerIdIos : _testBannerIdAndroid;
   }
 
-  /// Returns the Interstitial Ad Unit ID configured in .env, falling back to test Interstitial ID.
+  /// Returns the Interstitial Ad Unit ID. Uses Google Test Interstitial ID in debug mode,
+  /// and the configured ID from `.env` in release mode.
   static String get interstitialAdUnitId {
+    if (kDebugMode) {
+      if (kIsWeb) return '';
+      return Platform.isIOS ? _testInterstitialIdIos : _testInterstitialIdAndroid;
+    }
     final String? id = dotenv.env['ADMOB_INTERSTITIAL_ID'];
     if (id != null && id.trim().isNotEmpty) {
       return id.trim();
@@ -47,3 +63,4 @@ class AdHelper {
     return Platform.isIOS ? _testInterstitialIdIos : _testInterstitialIdAndroid;
   }
 }
+

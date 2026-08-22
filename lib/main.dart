@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -10,6 +11,15 @@ import 'package:netkeep/utils/theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+
+  if (kDebugMode) {
+    await MobileAds.instance.updateRequestConfiguration(
+      RequestConfiguration(
+        testDeviceIds: ['AC84307E5DB93AD5A454062E00F93F74'],
+      ),
+    );
+  }
+
   await MobileAds.instance.initialize();
   AdManager.instance.loadInterstitialAd();
   await AppPreferences.init();
