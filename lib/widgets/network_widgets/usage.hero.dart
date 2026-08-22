@@ -75,35 +75,40 @@ class UsageHero extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  amount,
-                  style: TextStyle(
-                    fontSize: 42,
-                    fontWeight: FontWeight.w900,
-                    fontFamily: GoogleFonts.orbitron().fontFamily,
-                    color: AppColors.white,
-                    height: 1.0,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    unit,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    amount,
                     style: TextStyle(
-                      color: AppColors.primaryColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 42,
+                      fontWeight: FontWeight.w900,
                       fontFamily: GoogleFonts.orbitron().fontFamily,
+                      color: AppColors.white,
+                      height: 1.0,
+                      letterSpacing: 1.0,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      unit,
+                      style: TextStyle(
+                        color: AppColors.primaryColor,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                        fontFamily: GoogleFonts.orbitron().fontFamily,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 6),
             Text(caption, style: Theme.of(context).textTheme.bodySmall),

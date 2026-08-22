@@ -25,7 +25,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool isServiceRunning = false;
-  final int _intervalSeconds = AppPreferences.pingIntervalSeconds;
+  bool _isTogglingService = false;
+  int get _intervalSeconds => _batterySaver ? 30 : 5;
   bool _batterySaver = AppPreferences.batterySaverEnabled;
   bool _showNetworkSpeed = AppPreferences.showNetworkSpeed;
   late String _selectedIspUrl;
@@ -62,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkServiceStatus();
+      AdManager.instance.loadInterstitialAd();
     }
   }
 
@@ -180,23 +182,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // ---------------------------------------------------------------------------
 
   Future<void> _toggleService() async {
-    if (isServiceRunning) {
-      setState(() {
-        isServiceRunning = false;
-      });
-      await KeepAliveManager.stopService();
+    if (_isTogglingService) return;
+    _isTogglingService = true;
+
+    try {
+      if (isServiceRunning) {
+        if (mounted) {
+          setState(() {
+            isServiceRunning = false;
+          });
+        }
+        await KeepAliveManager.stopService();
+        AdManager.instance.showAdIfReady();
+        return;
+      }
+
+      final intervalSeconds = _batterySaver ? 30 : 5;
+      final started = await KeepAliveManager.startService(
+        ispName: _selectedIsp.name,
+        targetUrl: _selectedIsp.url,
+        intervalSeconds: intervalSeconds,
+        batterySaver: _batterySaver,
+        showNetworkSpeed: _showNetworkSpeed,
+      );
+      if (started && mounted) {
+        setState(() => isServiceRunning = true);
+      }
       AdManager.instance.showAdIfReady();
-      return;
-    }
-    final started = await KeepAliveManager.startService(
-      ispName: _selectedIsp.name,
-      targetUrl: _selectedIsp.url,
-      intervalSeconds: _intervalSeconds,
-      batterySaver: _batterySaver,
-      showNetworkSpeed: _showNetworkSpeed,
-    );
-    if (started && mounted) {
-      setState(() => isServiceRunning = true);
+    } finally {
+      _isTogglingService = false;
     }
   }
 
@@ -215,11 +229,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _onBatterySaverChanged(bool value) async {
     setState(() => _batterySaver = value);
     await AppPreferences.setBatterySaverEnabled(value);
+    final intervalSeconds = value ? 30 : 5;
     if (isServiceRunning) {
-      KeepAliveManager.updateBatterySaver(value);
-    }
-    if (value) {
-      AdManager.instance.showAdIfReady();
+      KeepAliveManager.updateConfig(
+        batterySaver: value,
+        intervalSeconds: intervalSeconds,
+      );
     }
   }
 
@@ -230,9 +245,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Decoupled from the Ping Service: starts/stops the independent speed
     // heartbeat in the background isolate, whether or not ping is active.
     await KeepAliveManager.setShowNetworkSpeedEnabled(value);
-    if (value) {
-      AdManager.instance.showAdIfReady();
-    }
   }
 
   // ---------------------------------------------------------------------------

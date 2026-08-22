@@ -686,7 +686,22 @@ class KeepAliveEngine {
       if (!_pingRunning || generation != _generation) return;
 
       final intervalSeconds = _config.intervalSeconds.clamp(1, 3600).toInt();
-      await Future<void>.delayed(_nextDelay(intervalSeconds));
+      await _interruptibleDelay(_nextDelay(intervalSeconds), generation);
+    }
+  }
+
+  /// Interruptible delay that checks every second whether the loop generation
+  /// has changed or ping running state has been cleared, so an old loop stops
+  /// immediately instead of blocking until the full delay expires.
+  Future<void> _interruptibleDelay(Duration duration, int generation) async {
+    final endTime = DateTime.now().add(duration);
+    while (_pingRunning && generation == _generation) {
+      final remaining = endTime.difference(DateTime.now());
+      if (remaining.inMilliseconds <= 0) break;
+      final step = remaining < const Duration(seconds: 1)
+          ? remaining
+          : const Duration(seconds: 1);
+      await Future<void>.delayed(step);
     }
   }
 

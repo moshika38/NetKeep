@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:netkeep/services/ad_helper.dart';
@@ -9,9 +10,17 @@ class AdManager {
 
   InterstitialAd? _interstitialAd;
   bool _isAdLoading = false;
+  bool _isAdShowing = false;
+  Timer? _retryTimer;
 
   /// Returns true if an Interstitial Ad is loaded and ready to show.
   bool get isInterstitialAdReady => _interstitialAd != null;
+
+  /// Returns true if an ad is currently being loaded.
+  bool get isAdLoading => _isAdLoading;
+
+  /// Returns true if an ad is currently showing on screen.
+  bool get isAdShowing => _isAdShowing;
 
   /// Loads an Interstitial Ad asynchronously using the ID configured via [AdHelper].
   void loadInterstitialAd({
@@ -28,6 +37,7 @@ class AdManager {
       return;
     }
 
+    _retryTimer?.cancel();
     _isAdLoading = true;
 
     InterstitialAd.load(
@@ -45,30 +55,76 @@ class AdManager {
           _isAdLoading = false;
           debugPrint('AdManager: InterstitialAd failed to load: $error');
           onAdFailedToLoad?.call(error);
+          _scheduleRetry();
         },
       ),
     );
   }
 
+  void _scheduleRetry() {
+    _retryTimer?.cancel();
+    _retryTimer = Timer(const Duration(seconds: 5), () {
+      if (_interstitialAd == null && !_isAdLoading) {
+        debugPrint('AdManager: Retrying InterstitialAd load...');
+        loadInterstitialAd();
+      }
+    });
+  }
+
   /// Triggers an Interstitial Ad if available, auto-preloading the next ad upon completion.
   ///
+  /// If an ad is currently loading, waits up to [timeout] before proceeding.
   /// Executes [onComplete] immediately if the ad is not ready, ensuring user actions
   /// proceed without freezing or delay.
-  void showAdIfReady({VoidCallback? onComplete}) {
-    if (!isInterstitialAdReady) {
+  Future<void> showAdIfReady({
+    VoidCallback? onComplete,
+    Duration timeout = const Duration(milliseconds: 1500),
+  }) async {
+    bool hasCompleted = false;
+    void safeOnComplete() {
+      if (!hasCompleted) {
+        hasCompleted = true;
+        onComplete?.call();
+      }
+    }
+
+    if (_isAdShowing) {
+      debugPrint('AdManager: Ad is already showing.');
+      safeOnComplete();
+      return;
+    }
+
+    // If ad is loading, wait briefly for it to complete loading.
+    if (!_isAdLoading && _interstitialAd == null) {
+      loadInterstitialAd();
+    }
+
+    if (!_isAdLoading && _interstitialAd == null) {
+      safeOnComplete();
+      return;
+    }
+
+    if (_isAdLoading && _interstitialAd == null) {
+      final Stopwatch sw = Stopwatch()..start();
+      while (_isAdLoading && sw.elapsed < timeout) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    }
+
+    if (!isInterstitialAdReady || _isAdShowing) {
       debugPrint('AdManager: InterstitialAd not ready. Proceeding with flow & preloading.');
-      onComplete?.call();
+      safeOnComplete();
       loadInterstitialAd();
       return;
     }
 
     showInterstitialAd(
       onAdDismissed: () {
-        onComplete?.call();
+        safeOnComplete();
         loadInterstitialAd();
       },
       onAdFailed: () {
-        onComplete?.call();
+        safeOnComplete();
         loadInterstitialAd();
       },
     );
@@ -82,11 +138,13 @@ class AdManager {
     VoidCallback? onAdDismissed,
     VoidCallback? onAdFailed,
   }) {
-    if (_interstitialAd == null) {
-      debugPrint('AdManager: Cannot show InterstitialAd - ad is not ready.');
+    if (_interstitialAd == null || _isAdShowing) {
+      debugPrint('AdManager: Cannot show InterstitialAd - ad is not ready or already showing.');
       onAdFailed?.call();
       return;
     }
+
+    _isAdShowing = true;
 
     _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
@@ -94,12 +152,14 @@ class AdManager {
       },
       onAdDismissedFullScreenContent: (ad) {
         debugPrint('AdManager: InterstitialAd dismissed.');
+        _isAdShowing = false;
         ad.dispose();
         _interstitialAd = null;
         onAdDismissed?.call();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         debugPrint('AdManager: InterstitialAd failed to show: $error');
+        _isAdShowing = false;
         ad.dispose();
         _interstitialAd = null;
         onAdFailed?.call();
@@ -111,7 +171,11 @@ class AdManager {
 
   /// Disposes of active resources.
   void dispose() {
+    _retryTimer?.cancel();
     _interstitialAd?.dispose();
     _interstitialAd = null;
+    _isAdLoading = false;
+    _isAdShowing = false;
   }
 }
+

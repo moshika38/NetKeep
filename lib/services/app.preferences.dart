@@ -128,9 +128,8 @@ class AppPreferences {
     await prefs.setBool(showNetworkSpeedKey, value);
   }
 
-  /// Selected ping interval in seconds. Stored independently of the running
-  /// service so the Home Screen restores it even when the service is OFF.
-  static int get pingIntervalSeconds => _pingIntervalSeconds;
+  /// Selected ping interval in seconds: 5s when Battery Saver is OFF, 30s when Battery Saver is ON.
+  static int get pingIntervalSeconds => _batterySaverEnabled ? 30 : 5;
 
   static Future<void> setPingIntervalSeconds(int value) async {
     _pingIntervalSeconds = value.clamp(1, 3600).toInt();
@@ -144,8 +143,10 @@ class AppPreferences {
 
   static Future<void> setBatterySaverEnabled(bool value) async {
     _batterySaverEnabled = value;
+    _pingIntervalSeconds = value ? 30 : 5;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_batterySaverKey, value);
+    await prefs.setInt(_pingIntervalKey, _pingIntervalSeconds);
   }
 
   static String get selectedIspUrl => _selectedIspUrl;

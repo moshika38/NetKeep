@@ -13,6 +13,10 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.UpdateAvailability
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -27,6 +31,9 @@ class MainActivity : FlutterActivity() {
     // persistent foreground notification is visible on Android 13+) and
     // battery-optimization status/settings.
     private val platformChannel = "netkeep/platform"
+    private val appUpdateChannel = "netkeep/app_update"
+
+    private var pendingUpdateResult: MethodChannel.Result? = null
 
     private val dataUsageHandler = MethodChannel.MethodCallHandler { call, result ->
         if (call.method != "getDeviceTotalData") {
@@ -71,6 +78,14 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private val appUpdateHandler = MethodChannel.MethodCallHandler { call, result ->
+        when (call.method) {
+            "checkForUpdate" -> checkForAppUpdate(result)
+            "performImmediateUpdate" -> performImmediateAppUpdate(result)
+            else -> result.notImplemented()
+        }
+    }
+
     private var pendingNotificationPermission: ((Boolean) -> Unit)? = null
 
     /**
@@ -98,6 +113,61 @@ class MainActivity : FlutterActivity() {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             NotificationManagerCompat.from(this).areNotificationsEnabled()
 
+    private fun checkForAppUpdate(result: MethodChannel.Result) {
+        val appUpdateManager = AppUpdateManagerFactory.create(this)
+        appUpdateManager.appUpdateInfo.addOnSuccessListener { appUpdateInfo ->
+            val availability = appUpdateInfo.updateAvailability()
+            val isAvailable = availability == UpdateAvailability.UPDATE_AVAILABLE ||
+                    availability == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS
+            val isImmediateAllowed = appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+            result.success(
+                mapOf(
+                    "updateAvailable" to (isAvailable && isImmediateAllowed),
+                    "immediateAllowed" to isImmediateAllowed,
+                    "availableVersionCode" to appUpdateInfo.availableVersionCode(),
+                    "updateAvailability" to availability
+                )
+            )
+        }.addOnFailureListener { e ->
+            result.success(
+                mapOf(
+                    "updateAvailable" to false,
+                    "error" to (e.message ?: "Failed to check update")
+                )
+            )
+        }
+    }
+
+    private fun performImmediateAppUpdate(result: MethodChannel.Result) {
+        val appUpdateManager = AppUpdateManagerFactory.create(this)
+        appUpdateManager.appUpdateInfo.addOnSuccessListener { appUpdateInfo ->
+            val availability = appUpdateInfo.updateAvailability()
+            val isImmediateAllowed = appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+
+            if ((availability == UpdateAvailability.UPDATE_AVAILABLE ||
+                 availability == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) &&
+                isImmediateAllowed
+            ) {
+                pendingUpdateResult = result
+                try {
+                    appUpdateManager.startUpdateFlowForResult(
+                        appUpdateInfo,
+                        this,
+                        AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build(),
+                        REQUEST_CODE_IMMEDIATE_UPDATE
+                    )
+                } catch (e: Exception) {
+                    pendingUpdateResult = null
+                    result.error("UPDATE_FLOW_FAILED", e.message, null)
+                }
+            } else {
+                result.success(false)
+            }
+        }.addOnFailureListener { e ->
+            result.error("UPDATE_CHECK_FAILED", e.message, null)
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         createKeepAliveNotificationChannel()
@@ -106,6 +176,8 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler(dataUsageHandler)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, platformChannel)
             .setMethodCallHandler(platformHandler)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, appUpdateChannel)
+            .setMethodCallHandler(appUpdateHandler)
     }
 
     override fun onRequestPermissionsResult(
@@ -119,6 +191,32 @@ class MainActivity : FlutterActivity() {
                 grantResults[0] == PackageManager.PERMISSION_GRANTED
             pendingNotificationPermission?.invoke(granted)
             pendingNotificationPermission = null
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_IMMEDIATE_UPDATE) {
+            val success = resultCode == RESULT_OK
+            pendingUpdateResult?.success(success)
+            pendingUpdateResult = null
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val appUpdateManager = AppUpdateManagerFactory.create(this)
+        appUpdateManager.appUpdateInfo.addOnSuccessListener { appUpdateInfo ->
+            if (appUpdateInfo.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
+                try {
+                    appUpdateManager.startUpdateFlowForResult(
+                        appUpdateInfo,
+                        this,
+                        AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build(),
+                        REQUEST_CODE_IMMEDIATE_UPDATE
+                    )
+                } catch (_: Exception) {}
+            }
         }
     }
 
@@ -161,6 +259,7 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val REQUEST_NOTIFICATION_PERMISSION = 1001
+        private const val REQUEST_CODE_IMMEDIATE_UPDATE = 1002
         const val KEEP_ALIVE_CHANNEL_ID = "netkeep_keepalive_channel"
 
         /**

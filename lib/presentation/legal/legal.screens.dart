@@ -322,7 +322,7 @@ class _LegalLayout extends StatelessWidget {
         if (didPop) return;
         AdManager.instance.showAdIfReady(
           onComplete: () {
-            if (context.mounted) {
+            if (context.mounted && Navigator.canPop(context)) {
               Navigator.of(context).pop();
             }
           },
